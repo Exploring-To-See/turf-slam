@@ -1,5 +1,6 @@
 // Server-side mirror of the validators in public/index.html. Keep in sync.
 const ROLES = ["Only batter", "Only bowler", "All rounder", "Wicket keeper"];
+const SIZES = ["S", "M", "L", "XL", "XXL", "XXXL"];
 const TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 const MAX_BYTES = 8 * 1024 * 1024;
 const NAME_RE = /^\p{L}[\p{L}\p{M}'’.\- ]*$/u;
@@ -64,6 +65,8 @@ function validateStart(b) {
 
   if (!ROLES.includes(b.role)) errors.role = "Select your playing role.";
 
+  if (!SIZES.includes(b.jersey_size)) errors.jersey_size = "Select your jersey size.";
+
   const played = tidy(b.tournaments_played);
   if (played.length < 2) errors.tournaments_played = "Enter at least one tournament name.";
   else if (played.length > 300) errors.tournaments_played = "Keep this under 300 characters.";
@@ -82,7 +85,7 @@ function validateStart(b) {
   return {
     data: {
       client_token: b.client_token.toLowerCase(),
-      name, age, phone: phone.value, role: b.role,
+      name, age, phone: phone.value, role: b.role, jersey_size: b.jersey_size,
       tournaments_played: played, crichero_url: cric.value, consent: true,
       photo_type: b.photo.type, payment_type: b.payment.type,
     },

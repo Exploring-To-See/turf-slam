@@ -103,7 +103,7 @@ img { max-width: 100%; }
 .head h1 { margin: 0; font: 800 italic clamp(2rem, 5.5vw, 2.7rem)/0.95 var(--f-display); text-transform: uppercase; letter-spacing: 0.01em; text-shadow: 0 2px 0 rgba(0, 30, 0, 0.35); }
 .req-line { margin: 8px 0 0; color: var(--muted); font-size: 0.92rem; }
 .req-line strong { color: var(--text); font: 700 1.05rem/1 var(--f-display); font-variant-numeric: tabular-nums; }
-.sheet ol { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
+.sheet ol { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; }
 .sheet button { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; min-height: 44px; display: grid; justify-items: center; align-content: center; padding: 2px; }
 .sheet button:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; border-radius: 8px; }
 .sheet .n {
@@ -335,19 +335,20 @@ legend { padding: 0; margin-bottom: 10px; float: left; width: 100%; font: 700 1.
       <div id="form-view">
         <div class="head">
           <h1 id="card-h">Registration form</h1>
-          <p class="req-line" aria-live="polite"><strong id="over-count"><span id="done-n">0</span> of 7</strong> required entries in</p>
-          <span id="sheet-chip" hidden aria-hidden="true">0 of 7 in</span>
-          <span class="balls" hidden aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          <p class="req-line" aria-live="polite"><strong id="over-count"><span id="done-n">0</span> of 8</strong> required entries in</p>
+          <span id="sheet-chip" hidden aria-hidden="true">0 of 8 in</span>
+          <span class="balls" hidden aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
           <nav class="sheet" aria-label="Jump to an entry">
             <ol>
               <li data-row="name"><button type="button" data-go="name"><span class="n" aria-hidden="true">1</span><span class="k"><span class="kf">Name</span><span class="ks">Name</span></span><span class="v">Your full name</span><span class="tag">Required</span></button></li>
               <li data-row="age"><button type="button" data-go="age"><span class="n" aria-hidden="true">2</span><span class="k"><span class="kf">Age</span><span class="ks">Age</span></span><span class="v">Whole number</span><span class="tag">Required</span></button></li>
               <li data-row="phone"><button type="button" data-go="phone"><span class="n" aria-hidden="true">3</span><span class="k"><span class="kf">Phone number</span><span class="ks">Phone</span></span><span class="v">Mobile number</span><span class="tag">Required</span></button></li>
               <li data-row="role"><button type="button" data-go="role"><span class="n" aria-hidden="true">4</span><span class="k"><span class="kf">Role</span><span class="ks">Role</span></span><span class="v">Your playing role</span><span class="tag">Required</span></button></li>
-              <li data-row="played"><button type="button" data-go="played"><span class="n" aria-hidden="true">5</span><span class="k"><span class="kf">Tournaments played</span><span class="ks">Played</span></span><span class="v">Or ‘First tournament’</span><span class="tag">Required</span></button></li>
-              <li data-row="crichero"><button type="button" data-go="crichero"><span class="n" aria-hidden="true">6</span><span class="k"><span class="kf">CricHeroes link</span><span class="ks">CricHeroes</span></span><span class="v">Optional</span><span class="tag">Optional</span></button></li>
-              <li data-row="photo"><button type="button" data-go="photo"><span class="n" aria-hidden="true">7</span><span class="k"><span class="kf">Photograph</span><span class="ks">Photo</span></span><span class="v">Clear photo of yourself</span><span class="tag">Required</span></button></li>
-              <li data-row="payment"><button type="button" data-go="payment"><span class="n" aria-hidden="true">8</span><span class="k"><span class="kf">Payment screenshot</span><span class="ks">Payment</span></span><span class="v">Confirmation screen</span><span class="tag">Required</span></button></li>
+              <li data-row="jersey"><button type="button" data-go="jersey"><span class="n" aria-hidden="true">5</span><span class="k"><span class="kf">Jersey size</span><span class="ks">Jersey</span></span><span class="v">S to XXXL</span><span class="tag">Required</span></button></li>
+              <li data-row="played"><button type="button" data-go="played"><span class="n" aria-hidden="true">6</span><span class="k"><span class="kf">Tournaments played</span><span class="ks">Played</span></span><span class="v">Or ‘First tournament’</span><span class="tag">Required</span></button></li>
+              <li data-row="crichero"><button type="button" data-go="crichero"><span class="n" aria-hidden="true">7</span><span class="k"><span class="kf">CricHeroes link</span><span class="ks">CricHeroes</span></span><span class="v">Optional</span><span class="tag">Optional</span></button></li>
+              <li data-row="photo"><button type="button" data-go="photo"><span class="n" aria-hidden="true">8</span><span class="k"><span class="kf">Photograph</span><span class="ks">Photo</span></span><span class="v">Clear photo of yourself</span><span class="tag">Required</span></button></li>
+              <li data-row="payment"><button type="button" data-go="payment"><span class="n" aria-hidden="true">9</span><span class="k"><span class="kf">Payment screenshot</span><span class="ks">Payment</span></span><span class="v">Confirmation screen</span><span class="tag">Required</span></button></li>
             </ol>
           </nav>
           <p class="preview-note" id="preview-note" hidden><strong>Preview.</strong> This copy isn’t connected to the registration server, so nothing you enter is sent or stored.</p>
@@ -387,6 +388,19 @@ legend { padding: 0; margin-bottom: 10px; float: left; width: 100%; font: 700 1.
                   <option>Wicket keeper</option>
                 </select></div>
                 <p class="error" id="role-error"></p>
+              </div>
+              <div class="field">
+                <label class="label" for="jersey">Jersey size <span class="req" aria-hidden="true">*</span></label>
+                <div class="ctl"><select class="select placeholder" id="jersey" name="jersey_size" required aria-describedby="jersey-error">
+                  <option value="" selected disabled>Select your jersey size</option>
+                  <option>S</option>
+                  <option>M</option>
+                  <option>L</option>
+                  <option>XL</option>
+                  <option>XXL</option>
+                  <option>XXXL</option>
+                </select></div>
+                <p class="error" id="jersey-error"></p>
               </div>
               <div class="field">
                 <label class="label" for="played">Tournaments played <span class="req" aria-hidden="true">*</span></label>
@@ -437,6 +451,7 @@ legend { padding: 0; margin-bottom: 10px; float: left; width: 100%; font: 700 1.
         <dl class="facts">
           <dt>Player</dt><dd id="f-name"></dd>
           <dt>Role</dt><dd id="f-role"></dd>
+          <dt>Jersey size</dt><dd id="f-jersey"></dd>
           <dt>Uploads</dt><dd>Photograph and payment screenshot received</dd>
           <dt>Payment</dt><dd><span class="pill">Awaiting organiser review</span></dd>
           <dt>Submitted</dt><dd id="f-time"></dd>
@@ -500,11 +515,12 @@ legend { padding: 0; margin-bottom: 10px; float: left; width: 100%; font: 700 1.
   const API = LIVE ? CFG.apiBase.replace(/\/$/, "") : "";
   const MAX = 8 * 1024 * 1024;
   const ROLES = ["Only batter", "Only bowler", "All rounder", "Wicket keeper"];
+  const SIZES = ["S", "M", "L", "XL", "XXL", "XXXL"];
   const $ = (s, r = document) => r.querySelector(s);
 
   const form = $("#reg");
   const els = {
-    name: $("#name"), age: $("#age"), role: $("#role"),
+    name: $("#name"), age: $("#age"), role: $("#role"), jersey: $("#jersey"),
     phone: $("#phone"), crichero: $("#crichero"), played: $("#played"), consent: $("#consent"),
   };
   const files = { photo: null, payment: null };
@@ -580,6 +596,7 @@ legend { padding: 0; margin-bottom: 10px; float: left; width: 100%; font: 700 1.
     phone() { return normPhone(els.phone.value).error || ""; },
     role() { return ROLES.includes(els.role.value) ? "" : "Select your playing role."; },
     crichero() { return normCric(els.crichero.value).error || ""; },
+    jersey() { return SIZES.includes(els.jersey.value) ? "" : "Select your jersey size."; },
     played() {
       const v = tidy(els.played.value);
       if (!v) return "List the tournaments you have played, or enter ‘First tournament’.";
@@ -591,8 +608,8 @@ legend { padding: 0; margin-bottom: 10px; float: left; width: 100%; font: 700 1.
     payment() { return files.payment ? "" : "Upload your payment screenshot."; },
     consent() { return els.consent.checked ? "" : "Tick the box to confirm your details and agree to share them."; },
   };
-  const order = ["name", "age", "phone", "role", "played", "crichero", "photo", "payment", "consent"];
-  const labels = { name: "Name", age: "Age", phone: "Phone number", role: "Role", played: "Tournaments played", crichero: "CricHeroes profile link", photo: "Photograph", payment: "Payment screenshot", consent: "Confirmation" };
+  const order = ["name", "age", "phone", "role", "jersey", "played", "crichero", "photo", "payment", "consent"];
+  const labels = { name: "Name", age: "Age", phone: "Phone number", role: "Role", jersey: "Jersey size", played: "Tournaments played", crichero: "CricHeroes profile link", photo: "Photograph", payment: "Payment screenshot", consent: "Confirmation" };
   const inputFor = (k) => k === "photo" || k === "payment" ? $("#" + k) : els[k];
 
   function setError(k, msg) {
@@ -607,16 +624,16 @@ legend { padding: 0; margin-bottom: 10px; float: left; width: 100%; font: 700 1.
   function check(k) { const m = rules[k](); setError(k, m); return m; }
 
   // ---------- completion indicator ----------
-  const REQUIRED = ["name", "age", "phone", "role", "played", "photo", "payment"];
+  const REQUIRED = ["name", "age", "phone", "role", "jersey", "played", "photo", "payment"];
   const balls = [...document.querySelectorAll(".balls i")];
-  const SHEET = ["name", "age", "phone", "role", "played", "crichero", "photo", "payment"];
+  const SHEET = ["name", "age", "phone", "role", "jersey", "played", "crichero", "photo", "payment"];
   const blank = {};
   document.querySelectorAll(".sheet li").forEach((li) => { blank[li.dataset.row] = $(".v", li).textContent; });
   function sheetValue(k) {
     if (k === "name" || k === "played") return tidy(els[k].value);
     if (k === "phone") return normPhone(els.phone.value).value || "";
     if (k === "age") return els.age.value.trim() ? "Age " + els.age.value.trim() : "";
-    if (k === "role") return els.role.value;
+    if (k === "role" || k === "jersey") return els[k].value;
     if (k === "crichero") { const r = normCric(els.crichero.value); return r.value ? r.value.replace(/^https:\/\/(www\.)?/, "") : ""; }
     if (k === "photo" || k === "payment") return files[k] ? files[k].file.name || "Added" : "";
     return "";
@@ -639,7 +656,7 @@ legend { padding: 0; margin-bottom: 10px; float: left; width: 100%; font: 700 1.
       $(".tag", li).textContent = bad ? "Check" : ok ? "In" : k === "crichero" ? "Optional" : "Required";
       const f = inputFor(k).closest(".field"); if (f) f.classList.toggle("ok", ok);
     }
-    $("#sheet-chip").textContent = `${inCount} of 7 in`;
+    $("#sheet-chip").textContent = `${inCount} of 8 in`;
   }
   document.querySelectorAll(".sheet [data-go]").forEach((b) => b.addEventListener("click", () => {
     const el = inputFor(b.dataset.go);
@@ -653,6 +670,7 @@ legend { padding: 0; margin-bottom: 10px; float: left; width: 100%; font: 700 1.
     els[k].addEventListener("input", () => { if (touched.has(k) && $("#" + k + "-error").textContent) check(k); updateOver(); });
   }
   els.age.addEventListener("input", () => { const d = els.age.value.replace(/\D+/g, ""); if (d !== els.age.value) els.age.value = d; });
+  els.jersey.addEventListener("change", () => { els.jersey.classList.toggle("placeholder", !els.jersey.value); check("jersey"); updateOver(); });
   els.role.addEventListener("change", () => { els.role.classList.toggle("placeholder", !els.role.value); check("role"); updateOver(); });
   els.consent.addEventListener("change", () => { if ($("#consent-error").textContent) check("consent"); });
 
@@ -758,7 +776,7 @@ legend { padding: 0; margin-bottom: 10px; float: left; width: 100%; font: 700 1.
     box.hidden = false; box.focus();
   }
   function applyServerErrors(errors) {
-    const map = { crichero_url: "crichero", tournaments_played: "played" };
+    const map = { crichero_url: "crichero", tournaments_played: "played", jersey_size: "jersey" };
     const list = [];
     for (const [f, m] of Object.entries(errors || {})) {
       const k = map[f] || f;
@@ -805,6 +823,7 @@ legend { padding: 0; margin-bottom: 10px; float: left; width: 100%; font: 700 1.
       age: els.age.value.trim(),
       phone: normPhone(els.phone.value).value,
       role: els.role.value,
+      jersey_size: els.jersey.value,
       tournaments_played: tidy(els.played.value),
       crichero_url: normCric(els.crichero.value).value,
       consent: els.consent.checked,
@@ -884,6 +903,7 @@ legend { padding: 0; margin-bottom: 10px; float: left; width: 100%; font: 700 1.
     $("#ref-out").textContent = reference;
     $("#f-name").textContent = body.name;
     $("#f-role").textContent = body.role;
+    $("#f-jersey").textContent = body.jersey_size;
     const d = createdAt ? new Date(createdAt) : new Date();
     $("#f-time").textContent = d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
     $("#form-view").hidden = true;
@@ -1011,7 +1031,7 @@ legend { padding: 0; margin-bottom: 10px; float: left; width: 100%; font: 700 1.
   const btn = document.getElementById("submit");
   let overDone = false;
   if (doneN && btn) new MutationObserver(() => {
-    const full = doneN.textContent.trim() === "7";
+    const full = doneN.textContent.trim() === "8";
     if (full && !overDone && !reduce.matches) { btn.classList.remove("ready"); void btn.offsetWidth; btn.classList.add("ready"); }
     overDone = full;
   }).observe(doneN, { childList: true, characterData: true, subtree: true });
@@ -1332,7 +1352,7 @@ legend { padding: 0; margin-bottom: 10px; float: left; width: 100%; font: 700 1.
     }).observe(li, { attributes: true, attributeFilter: ["class"] });
   });
   // a mistake: shake the head
-  document.querySelectorAll("#name, #age, #phone, #role, #played, #crichero, #photo, #payment, #consent").forEach((el) => {
+  document.querySelectorAll("#name, #age, #phone, #role, #jersey, #played, #crichero, #photo, #payment, #consent").forEach((el) => {
     new MutationObserver(() => { if (el.getAttribute("aria-invalid") === "true") { feel("nope", 1500, { force: true, lock: 700 }); no(); } })
       .observe(el, { attributes: true, attributeFilter: ["aria-invalid"] });
   });
