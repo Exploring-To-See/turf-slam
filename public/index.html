@@ -1,0 +1,1626 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Turf Slam Registration</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Player registration for The Turf Slam cricket tournament.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,700;1,800&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* The Ground: one top-down view of a turf cricket ground. Mown outfield everywhere, the 22-yard strip
+   down the middle with chalk creases and stumps at both ends. Details live on the strip; payment on the
+   left of the outfield, uploads on the right. On narrow screens everything runs down the strip. */
+:root {
+  color-scheme: dark;
+  --outfield: #26642a;
+  --strip: #46742e;
+  --text: #f4f8ee;
+  --muted: #e8f0dd;
+  --chalk: rgba(255, 255, 250, 0.92);
+  --line: rgba(255, 255, 250, 0.22);
+  --lime: #c8f03a;
+  --lime-ink: #10140a;
+  --ink: #17200d;
+  --willow: #f3e4c0;
+  --danger: #ffc4b8;
+  --danger-bg: rgba(70, 10, 5, 0.5);
+  --f-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --f-body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --strip-w: 600px;
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; color: var(--text); font: 400 1rem/1.5 var(--f-body); overflow-x: hidden;
+  background: url("assets/turf-outfield.webp") center top / 1024px auto repeat, var(--outfield);
+}
+::selection { background: var(--lime); color: var(--lime-ink); }
+img { max-width: 100%; }
+.sr { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* ---------- The ground ---------- */
+.ground {
+  position: relative; min-height: 100vh; overflow: hidden; overflow: clip;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0;
+}
+/* the 22-yard strip, full height, down the middle */
+.strip-bg {
+  position: absolute; top: 0; bottom: 0; left: 50%; width: var(--strip-w); margin-left: calc(var(--strip-w) / -2); z-index: 0;
+  background: url("assets/turf-strip.webp") center top / 100% auto repeat-y, var(--strip);
+  box-shadow: 0 0 0 2px rgba(255, 255, 250, 0.10), 0 0 60px rgba(0, 0, 0, 0.25);
+}
+/* the 30-yard circle, in chalk on the outfield */
+.ring30 {
+  position: absolute; z-index: 0; left: 50%; top: 50%; width: min(1500px, 108vw); height: min(1000px, 112vh);
+  transform: translate(-50%, -50%); border: 2px dashed rgba(255, 255, 250, 0.16); border-radius: 50%; pointer-events: none;
+}
+.layout {
+  position: relative; z-index: 1; max-width: 1440px; margin: 0 auto; min-height: 100vh;
+  display: grid; grid-template-columns: minmax(0, 1fr) var(--strip-w) minmax(0, 1fr);
+  grid-template-areas: "pay strip up";
+  column-gap: 40px; align-items: center;
+}
+.side { padding-block: 32px; min-width: 0; }
+.side.pay { grid-area: pay; justify-self: end; width: min(330px, 100%); }
+.side.up { grid-area: up; justify-self: start; width: min(330px, 100%); }
+.on-strip { grid-area: strip; padding: 0 34px; min-width: 0; position: relative; align-self: stretch; display: flex; flex-direction: column; }
+
+/* chalk creases and stumps at both ends of the strip */
+.pitch-end { position: relative; height: 62px; pointer-events: none; flex: 0 0 auto; margin: 0 -34px; }
+.pitch-end.bottom { transform: scaleY(-1); margin-top: auto; }
+.pitch-end i { position: absolute; background: var(--chalk); }
+.pitch-end .bc { top: 22px; left: 30%; right: 30%; height: 3px; }
+.pitch-end .pc { top: 52px; left: 6%; right: 6%; height: 3px; }
+.pitch-end .rcl, .pitch-end .rcr { top: 2px; width: 3px; height: 53px; }
+.pitch-end .rcl { left: 30%; } .pitch-end .rcr { right: 30%; }
+.pitch-end svg { position: absolute; top: 6px; left: 50%; width: 84px; height: 35px; margin-left: -42px; overflow: visible; }
+.pitch-end svg .stumpset { transform-box: fill-box; transform-origin: 50% 80%; }
+
+/* ---------- Logo: still; only Bally (its ball) moves ---------- */
+.brand-bar { position: sticky; top: 0; z-index: 20; margin: 0 -34px; padding-top: 12px; pointer-events: none; }
+/* once the page scrolls, the logo shrinks into a header band with a chalk crease under it */
+.brand-bar::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 100%; opacity: 0; pointer-events: none;
+  background: url("assets/turf-strip.webp") center top / 100% auto, var(--strip);
+  border-bottom: 3px solid var(--chalk); box-shadow: 0 6px 14px rgba(0, 0, 0, 0.26);
+  transition: opacity 200ms var(--ease), height 260ms var(--ease);
+}
+.brand-bar.compact::before { opacity: 1; height: var(--bar-h, 80px); }
+.brand { display: block; width: min(260px, 64vw); margin: 0 auto; position: relative; pointer-events: auto; transform-origin: 50% 0; transition: transform 260ms var(--ease); }
+.brand-bar.compact .brand { transform: scale(0.6); }
+.brand .face { display: block; width: 100%; height: auto; }
+/* Bally floats above everything so it can be thrown round the screen; it is drawn where the logo's ball was */
+.bally { position: fixed; left: 0; top: 0; z-index: 40; pointer-events: none; will-change: transform; }
+.bally canvas { display: block; }
+.bally-hit { position: fixed; left: 0; top: 0; z-index: 41; border-radius: 50%; cursor: grab; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.bally-hit:active { cursor: grabbing; }
+
+/* ---------- Heading and progress ---------- */
+.head { text-align: center; margin-top: 4px; }
+.head h1 { margin: 0; font: 800 italic clamp(2rem, 5.5vw, 2.7rem)/0.95 var(--f-display); text-transform: uppercase; letter-spacing: 0.01em; text-shadow: 0 2px 0 rgba(0, 30, 0, 0.35); }
+.req-line { margin: 8px 0 0; color: var(--muted); font-size: 0.92rem; }
+.req-line strong { color: var(--text); font: 700 1.05rem/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.sheet ol { list-style: none; margin: 10px 0 0; padding: 0; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
+.sheet button { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; min-height: 44px; display: grid; justify-items: center; align-content: center; padding: 2px; }
+.sheet button:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; border-radius: 8px; }
+.sheet .n {
+  position: relative; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+  border: 2px dashed var(--chalk); font: 700 1rem/1 var(--f-display); color: var(--text);
+  transition: background 260ms var(--ease), border-color 260ms var(--ease);
+}
+.sheet .k, .sheet .v, .sheet .tag { display: none; }
+.sheet li[data-row="crichero"]:not(.filled) .n { border-style: dotted; }
+.sheet li.filled .n { border: 0; color: #fff7ea; text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45); background: var(--ball-img, none) center / cover, #b3261e; }
+.sheet li.filled .n::after { content: ""; position: absolute; inset: 3px 11px; border-radius: 50%; border-left: 1.5px dashed rgba(255, 245, 225, 0.85); border-right: 1.5px dashed rgba(255, 245, 225, 0.85); }
+[data-has-ball] .sheet li.filled .n::after, .sheet li.filled[data-arriving] .n::after { display: none; }
+.sheet li.filled[data-arriving] .n { background: transparent !important; border: 2px dashed var(--chalk); text-shadow: none; }
+.sheet li.landed .n { animation: landed 520ms var(--ease); }
+@keyframes landed { 0% { transform: scale(0.6) rotate(-90deg); } 60% { transform: scale(1.12) rotate(10deg); } 100% { transform: none; } }
+.sheet li.bad .n { border-color: #ff8f7a; color: var(--danger); }
+.preview-note { margin: 10px 0 0; text-align: center; color: var(--muted); font-size: 0.85rem; }
+
+/* ---------- Fields (on the strip) ---------- */
+#reg { display: contents; }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+legend { padding: 0; margin-bottom: 10px; float: left; width: 100%; font: 700 1.25rem/1 var(--f-display); letter-spacing: 0.01em; }
+.details { margin-top: 18px; }
+.grid { clear: both; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; }
+.span-2 { grid-column: 1 / -1; }
+.field { display: grid; gap: 5px; min-width: 0; align-content: start; }
+.label { font: 600 0.92rem/1.25 var(--f-body); }
+.req { color: var(--lime); margin-left: 2px; }
+.opt { color: var(--muted); font-weight: 500; font-size: 0.85rem; }
+.hint { margin: 0; color: var(--muted); font-size: 0.84rem; line-height: 1.35; }
+.input, .select {
+  width: 100%; height: 50px; padding: 0 14px; font: 500 1.0625rem/1.2 var(--f-body); color: var(--ink);
+  background: var(--willow-img, none) center / cover, var(--willow); border: 1px solid #c49d5f; border-radius: 12px;
+  box-shadow: 0 2px 0 rgba(0, 25, 0, 0.35); transition: border-color 160ms var(--ease), box-shadow 160ms var(--ease);
+}
+.input::placeholder, .select.placeholder { color: #6b5533; opacity: 1; }
+.input:hover, .select:hover { border-color: #8a6630; }
+.input:focus, .select:focus { outline: none; border-color: var(--lime); box-shadow: 0 0 0 3px rgba(200, 240, 58, 0.5); }
+.select {
+  appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 42px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%2317200d' stroke-width='2'/%3E%3C/svg%3E") right 16px center / 14px 9px no-repeat, var(--willow-img, none) center / cover, var(--willow);
+}
+.select option { color: #111; background: #fff; }
+[aria-invalid="true"] { border-color: #ff8f7a !important; box-shadow: 0 0 0 2px rgba(255, 143, 122, 0.55) !important; }
+.error { margin: 0; color: var(--danger); font-size: 0.86rem; font-weight: 500; }
+.error:empty { display: none; }
+
+/* ---------- Payment (left of the outfield) ---------- */
+.paycard { background: #fbfcf7; color: var(--ink); border-radius: 18px; padding: 20px 20px 18px; box-shadow: 0 24px 50px -24px rgba(0, 0, 0, 0.7); }
+.paycard h2 { margin: 0; font: 800 italic 1.9rem/1 var(--f-display); text-transform: uppercase; }
+.paycard h2 b { color: #1f6b19; font-style: inherit; }
+.paycard .sub { margin: 4px 0 12px; color: #3d4a2e; font-size: 0.9rem; }
+.qr { display: block; width: 100%; max-width: 230px; margin: 0 auto; aspect-ratio: 1; image-rendering: pixelated; }
+.upi { margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.upi code { font: 600 0.98rem/1.2 var(--f-body); color: var(--ink); background: #eef2e4; padding: 6px 10px; border-radius: 8px; user-select: all; }
+.copy { min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid #b9c4a6; background: #fff; color: var(--ink); font: 600 0.88rem/1 var(--f-body); cursor: pointer; }
+.copy:hover { border-color: var(--ink); }
+.copy:focus-visible { outline: 2px solid #1f6b19; outline-offset: 2px; }
+.payee { margin: 6px 0 0; text-align: center; color: #3d4a2e; font-size: 0.85rem; }
+.steps { margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid #dfe5d2; list-style: none; display: grid; gap: 6px; counter-reset: s; }
+.steps li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; font-size: 0.9rem; color: var(--ink); counter-increment: s; }
+.steps li::before { content: counter(s); display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #1f6b19; color: #fff; font: 700 0.8rem/1 var(--f-body); }
+.paycard .note { margin: 10px 0 0; color: #3d4a2e; font-size: 0.8rem; }
+
+/* ---------- Uploads (right of the outfield) ---------- */
+.uploads { display: grid; gap: 16px; }
+.uploads legend { margin-bottom: 12px; }
+.drop { position: relative; min-height: 118px; border: 2px dashed rgba(255, 255, 250, 0.75); border-radius: 0; background: rgba(0, 30, 0, 0.18); transition: border-color 160ms var(--ease); }
+.drop:hover { border-color: #fff; }
+.drop:focus-within { outline: 2px solid var(--lime); outline-offset: 2px; }
+.drop.dragging { border-color: var(--lime); border-style: solid; }
+.drop.invalid { border-color: #ff8f7a; }
+.drop .file-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px; }
+.drop.filled .file-input { pointer-events: none; }
+.drop-empty { display: grid; justify-items: center; text-align: center; gap: 4px; padding: 22px 12px; pointer-events: none; }
+.drop-empty b { font-weight: 600; }
+.drop-empty small { color: var(--muted); font-size: 0.82rem; }
+.drop-empty .dt { display: none; }
+@media (hover: hover) and (pointer: fine) { .drop-empty .dt { display: inline; } }
+.drop-filled { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 12px; padding: 12px; align-items: center; }
+.drop-filled img { width: 70px; height: 70px; object-fit: cover; border-radius: 8px; display: block; background: rgba(0, 0, 0, 0.2); }
+.fmeta { min-width: 0; display: grid; gap: 2px; }
+.fname { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fsize { color: var(--muted); font-size: 0.84rem; }
+.factions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.mini { min-height: 40px; padding: 0 12px; border-radius: 10px; cursor: pointer; font: 600 0.9rem/1 var(--f-body); color: var(--text); background: rgba(0, 25, 0, 0.25); border: 1px solid rgba(255, 255, 250, 0.55); }
+.mini:hover { border-color: #fff; }
+.mini:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
+.mini.ghost { background: transparent; border-color: transparent; text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------- Consent, notes, submit ---------- */
+.consent { margin-top: 14px; display: grid; gap: 6px; }
+.check { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: start; cursor: pointer; }
+.check input { position: absolute; opacity: 0; width: 24px; height: 24px; margin: 0; }
+.check .box { width: 24px; height: 24px; border-radius: 6px; border: 1.5px solid var(--chalk); background: rgba(0, 20, 0, 0.25); display: grid; place-items: center; }
+.check .box svg { width: 15px; height: 15px; color: var(--lime-ink); opacity: 0; }
+.check input:checked + .box { background: var(--lime); border-color: var(--lime); }
+.check input:checked + .box svg { opacity: 1; }
+.check input:focus-visible + .box { outline: 2px solid var(--lime); outline-offset: 2px; }
+.check input[aria-invalid="true"] + .box { border-color: #ff8f7a; }
+.check-text { font-size: 0.88rem; line-height: 1.4; }
+.summary { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--danger-bg); border: 1px solid rgba(255, 170, 150, 0.6); }
+.summary:focus { outline: 2px solid var(--danger); outline-offset: 2px; }
+.summary h2 { margin: 0 0 4px; font: 600 0.95rem/1.3 var(--f-body); color: #ffd7cf; }
+.summary ul { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 3px; font-size: 0.88rem; }
+.summary a { color: var(--text); text-underline-offset: 3px; }
+.notice { margin-top: 10px; font-size: 0.9rem; }
+.notice strong { display: block; }
+.notice.bad { color: var(--danger); }
+.actions { margin-top: 14px; display: grid; gap: 8px; }
+.btn {
+  position: relative; overflow: hidden; width: 100%; min-height: 56px; border: 0; border-radius: 14px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 12px;
+  background: var(--lime); color: var(--lime-ink); font: 800 italic 1.45rem/1 var(--f-display); text-transform: uppercase; letter-spacing: 0.03em;
+  box-shadow: 0 14px 28px -14px rgba(0, 0, 0, 0.7); transition: transform 160ms var(--ease), filter 160ms var(--ease);
+}
+.btn:hover { filter: brightness(1.06); }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.btn svg.stumps { display: none !important; }
+.btn[aria-busy="true"] { cursor: progress; filter: saturate(0.6); }
+.btn .bar { position: absolute; left: 0; bottom: 0; height: 4px; width: 0; background: var(--lime-ink); opacity: 0.55; transition: width 220ms linear; }
+.btn.ready { animation: ready 1200ms var(--ease) 1; }
+@keyframes ready { 0% { box-shadow: 0 0 0 0 rgba(200, 240, 58, 0.75); } 100% { box-shadow: 0 0 0 22px rgba(200, 240, 58, 0); } }
+.spinner { width: 20px; height: 20px; border-radius: 50%; border: 2.5px solid rgba(16, 20, 10, 0.25); border-top-color: var(--lime-ink); animation: spin 800ms linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.fine { margin: 0; text-align: center; color: var(--muted); font-size: 0.8rem; }
+
+/* confirmation */
+.done { display: grid; gap: 14px; margin-top: 18px; }
+.done:focus { outline: none; }
+.done h2 { margin: 0; font: 800 italic 2.4rem/0.95 var(--f-display); text-transform: uppercase; text-align: center; }
+.done-top svg { display: none; }
+.ref { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; border: 2px dashed var(--chalk); padding: 14px 16px; }
+.ref small { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 4px; }
+.ref output { font: 700 2.2rem/1 var(--f-display); letter-spacing: 0.08em; color: var(--lime); }
+.done p { margin: 0; }
+.facts { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; }
+.facts dt { color: var(--muted); font-size: 0.9rem; }
+.facts dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.pill::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: #e9b43c; }
+.done-actions { display: flex; gap: 8px; }
+
+.foot { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 12px; padding: 10px 0 18px; color: var(--muted); font-size: 0.82rem; max-width: var(--strip-w); margin: 0 auto; padding-inline: 34px; }
+
+/* ---------- Deliveries (ball flights) ---------- */
+.throw-layer { position: fixed; inset: 0; z-index: 60; pointer-events: none; overflow: hidden; contain: strict; }
+.tball { position: absolute; left: 0; top: 0; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; background: var(--ball-img, none) center / cover, #b3261e; will-change: transform, opacity; }
+.tball::before { content: ""; position: absolute; inset: 1px 6px; border-radius: 50%; border-left: 1.5px dashed rgba(255, 245, 225, 0.9); border-right: 1.5px dashed rgba(255, 245, 225, 0.9); }
+[data-has-ball] .tball::before { display: none; }
+.tring { position: absolute; left: 0; top: 0; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; border: 2px solid #fffdf4; will-change: transform, opacity; }
+.tfleck { position: absolute; left: 0; top: 0; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: #fffdf4; will-change: transform, opacity; }
+.tbail { position: absolute; left: 0; top: 0; width: 18px; height: 5px; margin: -2.5px 0 0 -9px; border-radius: 3px; background: var(--bail-img, none) center / 100% 100% no-repeat, #e7c27a; will-change: transform, opacity; }
+
+/* ---------- Narrower screens: everything runs down the strip ---------- */
+@media (max-width: 1180px) {
+  :root { --strip-w: min(640px, 100%); }
+  .ring30 { display: none; }
+  .strip-bg { left: 0; right: 0; margin: 0 auto; width: min(640px, calc(100% - 24px)); }
+  .layout {
+    grid-template-columns: minmax(0, 1fr); grid-template-areas: "strip"; max-width: 640px; column-gap: 0;
+  }
+  .on-strip { padding: 0 22px; }
+  .pitch-end, .brand-bar { margin: 0 -22px; }
+  .side { padding-block: 0; width: auto !important; justify-self: stretch !important; }
+  /* payment and uploads move onto the strip, between details and consent */
+  .side.pay, .side.up { grid-area: auto; }
+  .moved .paycard { margin-top: 18px; }
+  .moved .uploads { margin-top: 18px; }
+  .foot { padding-inline: 22px; }
+}
+@media (max-width: 520px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .sheet .n { width: 30px; height: 30px; font-size: 0.92rem; border-width: 1.5px; }
+  .sheet li.filled .n::after { inset: 2px 9px; }
+  .on-strip { padding: 0 16px; }
+  .pitch-end, .brand-bar { margin: 0 -16px; }
+}
+@media print {
+  .strip-bg, .ring30, .brand, .bally, .bally-hit, .pitch-end, .foot, .done-actions, .ref .mini { display: none !important; }
+  body { background: #fff; color: #000; }
+}
+@media (min-width: 1181px) {
+  /* desktop: the whole ground, footer included, fits one screen */
+  .layout { min-height: calc(100vh - 38px); }
+  .foot { padding-block: 4px 12px; }
+  .grid { row-gap: 10px; }
+  .input, .select { height: 44px; }
+  .details { margin-top: 12px; }
+}
+
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<main class="ground">
+  <div class="strip-bg" aria-hidden="true"></div>
+  <div class="ring30" aria-hidden="true"></div>
+  <div class="layout">
+
+    <!-- left of the outfield: payment -->
+    <aside class="side pay" aria-labelledby="pay-h" id="pay-slot">
+      <div class="paycard" id="paycard">
+        <h2 id="pay-h">Pay <b>₹3,000</b></h2>
+        <p class="sub">Scan with any UPI app and pay the registration fee.</p>
+        <img class="qr" src="assets/upi-qr.svg" width="230" height="230" alt="UPI QR code to pay the Turf Slam registration fee">
+        <div class="upi"><code id="upi-id">9007531205@pthdfc</code><button type="button" class="copy" id="copy-upi">Copy UPI ID</button></div>
+        <p class="payee">Payee: Devansh Mittal</p>
+        <ol class="steps">
+          <li>Scan the code, or pay the UPI ID from your app, and enter ₹3,000.</li>
+          <li>Take a screenshot of the payment confirmation.</li>
+          <li>Upload it as your payment screenshot.</li>
+        </ol>
+        <p class="note">The organisers check every payment screenshot by hand.</p>
+      </div>
+    </aside>
+
+    <!-- the strip: logo, details, consent, submit -->
+    <section class="on-strip" aria-labelledby="card-h">
+      <div class="brand-bar" id="brand-bar">
+        <a class="brand" href="#top" id="top" aria-label="The Turf Slam">
+          <img class="face" src="assets/turf-slam-logo-1200-noball.webp" width="1200" height="452" alt="The Turf Slam" fetchpriority="high">
+        </a>
+      </div>
+      <div class="pitch-end top" aria-hidden="true"><i class="bc"></i><i class="pc"></i><i class="rcl"></i><i class="rcr"></i><svg viewBox="0 0 62 26" aria-hidden="true"><ellipse cx="31" cy="20" rx="26" ry="4" fill="rgba(60,40,15,0.25)"/><g class="stumpset"><g fill="#fffdf4" stroke="#7a5a2a" stroke-width="1"><circle cx="17" cy="12" r="5"/><circle cx="31" cy="12" r="5"/><circle cx="45" cy="12" r="5"/></g><g class="bails" stroke="#e7c27a" stroke-width="3" stroke-linecap="round"><path d="M18 12h12M32 12h12"/></g></g></svg></div>
+
+      <div id="form-view">
+        <div class="head">
+          <h1 id="card-h">Registration form</h1>
+          <p class="req-line" aria-live="polite"><strong id="over-count"><span id="done-n">0</span> of 7</strong> required entries in</p>
+          <span id="sheet-chip" hidden aria-hidden="true">0 of 7 in</span>
+          <span class="balls" hidden aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          <nav class="sheet" aria-label="Jump to an entry">
+            <ol>
+              <li data-row="name"><button type="button" data-go="name"><span class="n" aria-hidden="true">1</span><span class="k"><span class="kf">Name</span><span class="ks">Name</span></span><span class="v">Your full name</span><span class="tag">Required</span></button></li>
+              <li data-row="age"><button type="button" data-go="age"><span class="n" aria-hidden="true">2</span><span class="k"><span class="kf">Age</span><span class="ks">Age</span></span><span class="v">Whole number</span><span class="tag">Required</span></button></li>
+              <li data-row="phone"><button type="button" data-go="phone"><span class="n" aria-hidden="true">3</span><span class="k"><span class="kf">Phone number</span><span class="ks">Phone</span></span><span class="v">Mobile number</span><span class="tag">Required</span></button></li>
+              <li data-row="role"><button type="button" data-go="role"><span class="n" aria-hidden="true">4</span><span class="k"><span class="kf">Role</span><span class="ks">Role</span></span><span class="v">Your playing role</span><span class="tag">Required</span></button></li>
+              <li data-row="played"><button type="button" data-go="played"><span class="n" aria-hidden="true">5</span><span class="k"><span class="kf">Tournaments played</span><span class="ks">Played</span></span><span class="v">Or ‘First tournament’</span><span class="tag">Required</span></button></li>
+              <li data-row="crichero"><button type="button" data-go="crichero"><span class="n" aria-hidden="true">6</span><span class="k"><span class="kf">CricHeroes link</span><span class="ks">CricHeroes</span></span><span class="v">Optional</span><span class="tag">Optional</span></button></li>
+              <li data-row="photo"><button type="button" data-go="photo"><span class="n" aria-hidden="true">7</span><span class="k"><span class="kf">Photograph</span><span class="ks">Photo</span></span><span class="v">Clear photo of yourself</span><span class="tag">Required</span></button></li>
+              <li data-row="payment"><button type="button" data-go="payment"><span class="n" aria-hidden="true">8</span><span class="k"><span class="kf">Payment screenshot</span><span class="ks">Payment</span></span><span class="v">Confirmation screen</span><span class="tag">Required</span></button></li>
+            </ol>
+          </nav>
+          <p class="preview-note" id="preview-note" hidden><strong>Preview.</strong> This copy isn’t connected to the registration server, so nothing you enter is sent or stored.</p>
+        </div>
+
+        <div class="summary" id="summary" role="alert" tabindex="-1" hidden>
+          <h2 id="summary-h">Check these before submitting</h2>
+          <ul id="summary-list"></ul>
+        </div>
+
+        <form id="reg" novalidate>
+          <fieldset class="details">
+            <legend>Player details</legend>
+            <div class="grid">
+              <div class="field">
+                <label class="label" for="name">Name <span class="req" aria-hidden="true">*</span></label>
+                <div class="ctl"><input class="input" id="name" name="name" type="text" autocomplete="name" autocapitalize="words" spellcheck="false" maxlength="80" placeholder="Your full name" required aria-describedby="name-error"></div>
+                <p class="error" id="name-error"></p>
+              </div>
+              <div class="field">
+                <label class="label" for="age">Age <span class="req" aria-hidden="true">*</span></label>
+                <div class="ctl"><input class="input" id="age" name="age" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" placeholder="e.g. 24" required aria-describedby="age-error"></div>
+                <p class="error" id="age-error"></p>
+              </div>
+              <div class="field">
+                <label class="label" for="phone">Phone number <span class="req" aria-hidden="true">*</span></label>
+                <div class="ctl"><input class="input" id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="32" placeholder="10-digit mobile number" required aria-describedby="phone-error"></div>
+                <p class="error" id="phone-error"></p>
+              </div>
+              <div class="field">
+                <label class="label" for="role">Role <span class="req" aria-hidden="true">*</span></label>
+                <div class="ctl"><select class="select placeholder" id="role" name="role" required aria-describedby="role-error">
+                  <option value="" selected disabled>Select your playing role</option>
+                  <option>Only batter</option>
+                  <option>Only bowler</option>
+                  <option>All rounder</option>
+                  <option>Wicket keeper</option>
+                </select></div>
+                <p class="error" id="role-error"></p>
+              </div>
+              <div class="field">
+                <label class="label" for="played">Tournaments played <span class="req" aria-hidden="true">*</span></label>
+                <div class="ctl"><input class="input" id="played" name="tournaments_played" type="text" autocomplete="off" maxlength="300" placeholder="Tournament names" required aria-describedby="played-hint played-error"></div>
+                <p class="hint" id="played-hint">New? Enter ‘First tournament’.</p>
+                <p class="error" id="played-error"></p>
+              </div>
+              <div class="field">
+                <label class="label" for="crichero">CricHeroes link <span class="opt">(optional)</span></label>
+                <div class="ctl"><input class="input" id="crichero" name="crichero_url" type="url" inputmode="url" autocomplete="url" autocapitalize="off" spellcheck="false" maxlength="300" placeholder="cricheroes.com/…" aria-describedby="crichero-hint crichero-error"></div>
+                <p class="hint" id="crichero-hint">Profile or share link.</p>
+                <p class="error" id="crichero-error"></p>
+              </div>
+            </div>
+          </fieldset>
+
+          <div class="moved" id="moved-slot"></div>
+
+          <div class="consent field">
+            <label class="check" for="consent">
+              <input type="checkbox" id="consent" name="consent" required aria-describedby="consent-error">
+              <span class="box" aria-hidden="true"><svg><use href="#i-check"/></svg></span>
+              <span class="check-text">I confirm these details are correct and agree to share my information and uploads with the tournament organisers for registration and payment verification.</span>
+            </label>
+            <p class="error" id="consent-error"></p>
+          </div>
+
+          <div class="notice" id="notice" role="status" hidden></div>
+
+          <div class="actions">
+            <button class="btn" type="submit" id="submit">
+              <span id="submit-label">Submit registration</span>
+              <svg class="stumps" aria-hidden="true"></svg>
+              <span class="bar" id="bar"></span>
+            </button>
+            <p class="fine">Your photo and payment screenshot are stored privately and seen only by the organisers.</p>
+          </div>
+        </form>
+      </div>
+
+      <div class="done" id="done-view" tabindex="-1" hidden>
+        <div class="done-top"><svg aria-hidden="true"></svg><h2>Registration received</h2></div>
+        <div class="ref">
+          <div><small>Your reference</small><output id="ref-out"></output></div>
+          <button type="button" class="mini" id="copy-ref">Copy reference</button>
+        </div>
+        <p>Your registration has been received. Keep your reference for future communication. Your payment screenshot will be reviewed by the organisers.</p>
+        <dl class="facts">
+          <dt>Player</dt><dd id="f-name"></dd>
+          <dt>Role</dt><dd id="f-role"></dd>
+          <dt>Uploads</dt><dd>Photograph and payment screenshot received</dd>
+          <dt>Payment</dt><dd><span class="pill">Awaiting organiser review</span></dd>
+          <dt>Submitted</dt><dd id="f-time"></dd>
+        </dl>
+        <p class="hint">Payment has not been verified yet, and a playing spot is confirmed only by the organisers.</p>
+        <div class="done-actions"><button type="button" class="mini" id="print-btn">Print or save as PDF</button></div>
+      </div>
+
+      <div class="pitch-end bottom" aria-hidden="true"><i class="bc"></i><i class="pc"></i><i class="rcl"></i><i class="rcr"></i><svg viewBox="0 0 62 26" aria-hidden="true"><ellipse cx="31" cy="20" rx="26" ry="4" fill="rgba(60,40,15,0.25)"/><g class="stumpset"><g fill="#fffdf4" stroke="#7a5a2a" stroke-width="1"><circle cx="17" cy="12" r="5"/><circle cx="31" cy="12" r="5"/><circle cx="45" cy="12" r="5"/></g><g class="bails" stroke="#e7c27a" stroke-width="3" stroke-linecap="round"><path d="M18 12h12M32 12h12"/></g></g></svg></div>
+    </section>
+
+    <!-- right of the outfield: uploads -->
+    <aside class="side up" id="up-slot">
+      <fieldset class="uploads" form="reg" id="uploads">
+        <legend>Your uploads</legend>
+        <div class="field" data-upload="photo">
+          <label class="label" for="photo">Photograph <span class="req" aria-hidden="true">*</span></label>
+          <p class="hint" id="photo-hint">A clear photo of yourself.</p>
+          <div class="drop" id="photo-drop">
+            <input class="file-input" id="photo" name="photo" type="file" form="reg" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" required aria-describedby="photo-hint photo-meta photo-error">
+            <div class="drop-empty"><b>Upload photo<span class="dt"> or drop it here</span></b><small id="photo-meta">JPG, PNG or WebP, max 8 MB</small></div>
+            <div class="drop-filled" hidden>
+              <img alt="" width="70" height="70">
+              <div class="fmeta"><span class="fname"></span><span class="fsize"></span>
+                <div class="factions"><button type="button" class="mini" data-act="replace">Replace</button><button type="button" class="mini ghost" data-act="remove">Remove</button></div>
+              </div>
+            </div>
+          </div>
+          <p class="error" id="photo-error"></p>
+        </div>
+        <div class="field" data-upload="payment">
+          <label class="label" for="payment">Payment screenshot <span class="req" aria-hidden="true">*</span></label>
+          <p class="hint" id="payment-hint">The confirmation screen after paying ₹3,000.</p>
+          <div class="drop" id="payment-drop">
+            <input class="file-input" id="payment" name="payment" type="file" form="reg" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" required aria-describedby="payment-hint payment-meta payment-error">
+            <div class="drop-empty"><b>Upload screenshot<span class="dt"> or drop it here</span></b><small id="payment-meta">JPG, PNG or WebP, max 8 MB</small></div>
+            <div class="drop-filled" hidden>
+              <img alt="" width="70" height="70">
+              <div class="fmeta"><span class="fname"></span><span class="fsize"></span>
+                <div class="factions"><button type="button" class="mini" data-act="replace">Replace</button><button type="button" class="mini ghost" data-act="remove">Remove</button></div>
+              </div>
+            </div>
+          </div>
+          <p class="error" id="payment-error"></p>
+        </div>
+      </fieldset>
+    </aside>
+  </div>
+  <footer class="foot">
+    <span>The Turf Slam player registration</span>
+    <span id="foot-mode"></span>
+  </footer>
+</main>
+
+<script src="config.js"></script>
+<script>
+(() => {
+  "use strict";
+  const CFG = window.TURF_SLAM_CONFIG;
+  const LIVE = !!(CFG && typeof CFG.apiBase === "string");
+  const API = LIVE ? CFG.apiBase.replace(/\/$/, "") : "";
+  const MAX = 8 * 1024 * 1024;
+  const ROLES = ["Only batter", "Only bowler", "All rounder", "Wicket keeper"];
+  const $ = (s, r = document) => r.querySelector(s);
+
+  const form = $("#reg");
+  const els = {
+    name: $("#name"), age: $("#age"), role: $("#role"),
+    phone: $("#phone"), crichero: $("#crichero"), played: $("#played"), consent: $("#consent"),
+  };
+  const files = { photo: null, payment: null };
+  const touched = new Set();
+  let busy = false;
+  let pending = null; // {id, upload_token} after uploads succeed but completion did not
+
+  if (!LIVE) {
+    $("#preview-note").hidden = false;
+    $("#foot-mode").textContent = "Preview";
+  }
+
+  // ---------- helpers ----------
+  const tidy = (s) => s.replace(/\s+/g, " ").trim();
+  const fmtSize = (n) => n < 1024 * 1024 ? Math.max(1, Math.round(n / 1024)) + " KB" : (n / 1024 / 1024).toFixed(1) + " MB";
+  function uuid() {
+    if (crypto.randomUUID) return crypto.randomUUID();
+    const b = crypto.getRandomValues(new Uint8Array(16));
+    b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;
+    const h = [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
+    return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+  }
+  let clientToken;
+  try { clientToken = sessionStorage.getItem("ts-client-token"); } catch (_) {}
+  if (!clientToken) { clientToken = uuid(); try { sessionStorage.setItem("ts-client-token", clientToken); } catch (_) {} }
+
+  // ---------- validators (mirror api/_lib/validate.js) ----------
+  const NAME_RE = /^\p{L}[\p{L}\p{M}'’.\- ]*$/u;
+  function normCric(v) {
+    let s = v.trim();
+    if (!s) return { value: null };
+    if (s.length > 300) return { error: "That link is too long. Paste the link from CricHeroes." };
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(s)) s = "https://" + s;
+    let u;
+    try { u = new URL(s); } catch (_) { return { error: "Enter a full link, like https://cricheroes.com/player-profile/…" }; }
+    if (u.protocol !== "https:" && u.protocol !== "http:") return { error: "Enter a web link that starts with https://" };
+    const host = u.hostname.toLowerCase();
+    const ok = host === "cricheroes.com" || host === "cricheroes.in" || host.endsWith(".cricheroes.com") || host.endsWith(".cricheroes.in") || host.includes("cricheroes");
+    if (!ok) return { error: "This doesn’t look like a CricHeroes link. Copy it from your CricHeroes profile." };
+    u.protocol = "https:";
+    return { value: u.toString() };
+  }
+  // Phone: Indian mobile (with or without +91 / 91 / 0) or any number with a + country code. Mirrors api/_lib/validate.js.
+  function normPhone(v) {
+    let s = v.trim();
+    if (!s) return { error: "Enter your phone number." };
+    if (s.length > 32) return { error: "Enter a 10-digit mobile number, or include your country code with +." };
+    s = s.replace(/[\s\-.()]/g, "");
+    if (s.startsWith("00")) s = "+" + s.slice(2);
+    let m;
+    if (/^[6-9]\d{9}$/.test(s)) return { value: "+91" + s };
+    if ((m = s.match(/^0([6-9]\d{9})$/))) return { value: "+91" + m[1] };
+    if ((m = s.match(/^91([6-9]\d{9})$/))) return { value: "+91" + m[1] };
+    if (/^\+[1-9]\d{7,14}$/.test(s)) return { value: s };
+    return { error: "Enter a 10-digit mobile number, or include your country code with +." };
+  }
+  const rules = {
+    name() {
+      const v = tidy(els.name.value);
+      if (!v) return "Enter your full name.";
+      if (v.length < 2) return "Enter your full name, at least 2 letters.";
+      if (!NAME_RE.test(v)) return "Use letters, spaces, apostrophes, hyphens or full stops only.";
+      return "";
+    },
+    age() {
+      const v = els.age.value.trim();
+      if (!v) return "Enter your age.";
+      if (!/^\d+$/.test(v)) return "Enter your age as a whole number, like 24.";
+      const n = +v;
+      if (n < 5 || n > 99) return "Enter an age between 5 and 99.";
+      return "";
+    },
+    phone() { return normPhone(els.phone.value).error || ""; },
+    role() { return ROLES.includes(els.role.value) ? "" : "Select your playing role."; },
+    crichero() { return normCric(els.crichero.value).error || ""; },
+    played() {
+      const v = tidy(els.played.value);
+      if (!v) return "List the tournaments you have played, or enter ‘First tournament’.";
+      if (v.length < 2) return "Enter at least one tournament name.";
+      if (v.length > 300) return "Keep this under 300 characters.";
+      return "";
+    },
+    photo() { return files.photo ? "" : "Upload a clear photo of yourself."; },
+    payment() { return files.payment ? "" : "Upload your payment screenshot."; },
+    consent() { return els.consent.checked ? "" : "Tick the box to confirm your details and agree to share them."; },
+  };
+  const order = ["name", "age", "phone", "role", "played", "crichero", "photo", "payment", "consent"];
+  const labels = { name: "Name", age: "Age", phone: "Phone number", role: "Role", played: "Tournaments played", crichero: "CricHeroes profile link", photo: "Photograph", payment: "Payment screenshot", consent: "Confirmation" };
+  const inputFor = (k) => k === "photo" || k === "payment" ? $("#" + k) : els[k];
+
+  function setError(k, msg) {
+    const input = inputFor(k);
+    const out = $("#" + k + "-error");
+    out.textContent = msg || "";
+    input.setAttribute("aria-invalid", msg ? "true" : "false");
+    if (k === "photo" || k === "payment") $("#" + k + "-drop").classList.toggle("invalid", !!msg);
+    if (typeof updateOver === "function" && sheetReady) updateOver();
+  }
+  let sheetReady = false;
+  function check(k) { const m = rules[k](); setError(k, m); return m; }
+
+  // ---------- completion indicator ----------
+  const REQUIRED = ["name", "age", "phone", "role", "played", "photo", "payment"];
+  const balls = [...document.querySelectorAll(".balls i")];
+  const SHEET = ["name", "age", "phone", "role", "played", "crichero", "photo", "payment"];
+  const blank = {};
+  document.querySelectorAll(".sheet li").forEach((li) => { blank[li.dataset.row] = $(".v", li).textContent; });
+  function sheetValue(k) {
+    if (k === "name" || k === "played") return tidy(els[k].value);
+    if (k === "phone") return normPhone(els.phone.value).value || "";
+    if (k === "age") return els.age.value.trim() ? "Age " + els.age.value.trim() : "";
+    if (k === "role") return els.role.value;
+    if (k === "crichero") { const r = normCric(els.crichero.value); return r.value ? r.value.replace(/^https:\/\/(www\.)?/, "") : ""; }
+    if (k === "photo" || k === "payment") return files[k] ? files[k].file.name || "Added" : "";
+    return "";
+  }
+  function updateOver() {
+    const n = REQUIRED.filter((k) => !rules[k]()).length;
+    $("#done-n").textContent = n;
+    balls.forEach((b, i) => b.classList.toggle("on", i < n));
+    let inCount = 0;
+    for (const k of SHEET) {
+      const li = document.querySelector(`.sheet li[data-row="${k}"]`);
+      const ok = !rules[k]() && (k !== "crichero" || !!els.crichero.value.trim());
+      const val = ok ? sheetValue(k) : "";
+      const bad = !!$("#" + k + "-error").textContent;
+      if (ok) inCount++;
+      if (ok && !li.classList.contains("filled")) { li.classList.remove("pop"); void li.offsetWidth; li.classList.add("pop"); }
+      li.classList.toggle("filled", ok);
+      li.classList.toggle("bad", bad);
+      $(".v", li).textContent = val || blank[k];
+      $(".tag", li).textContent = bad ? "Check" : ok ? "In" : k === "crichero" ? "Optional" : "Required";
+      const f = inputFor(k).closest(".field"); if (f) f.classList.toggle("ok", ok);
+    }
+    $("#sheet-chip").textContent = `${inCount} of 7 in`;
+  }
+  document.querySelectorAll(".sheet [data-go]").forEach((b) => b.addEventListener("click", () => {
+    const el = inputFor(b.dataset.go);
+    el.closest(".field").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
+    el.focus({ preventScroll: true });
+  }));
+
+  // ---------- field events ----------
+  for (const k of ["name", "age", "phone", "played", "crichero"]) {
+    els[k].addEventListener("blur", () => { touched.add(k); if (els[k].value.trim() || k !== "crichero") check(k); updateOver(); });
+    els[k].addEventListener("input", () => { if (touched.has(k) && $("#" + k + "-error").textContent) check(k); updateOver(); });
+  }
+  els.age.addEventListener("input", () => { const d = els.age.value.replace(/\D+/g, ""); if (d !== els.age.value) els.age.value = d; });
+  els.role.addEventListener("change", () => { els.role.classList.toggle("placeholder", !els.role.value); check("role"); updateOver(); });
+  els.consent.addEventListener("change", () => { if ($("#consent-error").textContent) check("consent"); });
+
+  // ---------- uploads ----------
+  async function sniff(file) {
+    const b = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+    if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+    if ([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((x, i) => b[i] === x)) return "image/png";
+    const s = String.fromCharCode(...b);
+    if (s.slice(0, 4) === "RIFF" && s.slice(8, 12) === "WEBP") return "image/webp";
+    return null;
+  }
+  function setupUpload(key) {
+    const input = $("#" + key);
+    const drop = $("#" + key + "-drop");
+    const empty = $(".drop-empty", drop);
+    const filled = $(".drop-filled", drop);
+    const img = $("img", filled);
+    let url = null;
+
+    function render() {
+      const f = files[key];
+      if (url) { URL.revokeObjectURL(url); url = null; }
+      drop.classList.toggle("filled", !!f);
+      empty.hidden = !!f; filled.hidden = !f;
+      if (f) {
+        url = URL.createObjectURL(f.file);
+        img.src = url;
+        img.alt = key === "photo" ? "Preview of your photo" : "Preview of your payment screenshot";
+        $(".fname", filled).textContent = f.file.name || (key + ".jpg");
+        $(".fsize", filled).textContent = f.type.replace("image/", "").toUpperCase() + ", " + fmtSize(f.file.size);
+      } else { img.removeAttribute("src"); }
+      updateOver();
+    }
+    async function take(file) {
+      if (!file) return;
+      let msg = "";
+      if (file.size === 0) msg = "That file is empty. Choose another image.";
+      else if (file.size > MAX) msg = `That image is ${fmtSize(file.size)}. Choose one under 8 MB.`;
+      let type = null;
+      if (!msg) {
+        type = await sniff(file).catch(() => null);
+        if (!type) msg = "Use a JPG, PNG or WebP image. On iPhone, a photo from your library works.";
+      }
+      if (msg) { setError(key, msg); input.value = ""; return; }
+      if (pending) { abortPending(); }
+      files[key] = { file, type };
+      setError(key, "");
+      render();
+    }
+    input.addEventListener("change", () => take(input.files && input.files[0]));
+    filled.addEventListener("click", (e) => {
+      const act = e.target.closest("[data-act]")?.dataset.act;
+      if (act === "replace") { input.value = ""; input.click(); }
+      if (act === "remove") {
+        files[key] = null; input.value = ""; render();
+        if (pending) abortPending();
+        input.focus({ preventScroll: true });
+      }
+    });
+    ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("dragging"); }));
+    ["dragleave", "dragend"].forEach((t) => drop.addEventListener(t, (e) => { if (!drop.contains(e.relatedTarget)) drop.classList.remove("dragging"); }));
+    drop.addEventListener("drop", (e) => {
+      e.preventDefault(); drop.classList.remove("dragging");
+      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) take(f);
+    });
+  }
+  setupUpload("photo"); setupUpload("payment");
+  // Dropping a file outside a drop zone must not navigate away from a half-filled form.
+  ["dragover", "drop"].forEach((t) => window.addEventListener(t, (e) => { if (!e.target.closest || !e.target.closest(".drop")) e.preventDefault(); }));
+
+  // ---------- submit ----------
+  const btn = $("#submit"), btnLabel = $("#submit-label"), bar = $("#bar"), notice = $("#notice");
+  function setBusy(on, text) {
+    busy = on;
+    btn.setAttribute("aria-busy", on ? "true" : "false");
+    btn.disabled = on;
+    btnLabel.textContent = text || "Submit registration";
+    const sp = btn.querySelector(".spinner"), st = btn.querySelector(".stumps");
+    if (on && !sp) { const s = document.createElement("span"); s.className = "spinner"; s.setAttribute("aria-hidden", "true"); btn.insertBefore(s, btnLabel); st.style.display = "none"; }
+    if (!on) { sp && sp.remove(); st.style.display = ""; bar.style.width = "0"; }
+  }
+  function showNotice(title, body, bad) {
+    notice.hidden = false;
+    notice.className = "notice" + (bad ? " bad" : "");
+    notice.innerHTML = "";
+    const s = document.createElement("strong"); s.textContent = title;
+    const p = document.createElement("span"); p.textContent = body;
+    notice.append(s, p);
+  }
+  function showSummary(errs) {
+    const box = $("#summary"), list = $("#summary-list");
+    list.innerHTML = "";
+    if (!errs.length) { box.hidden = true; return; }
+    $("#summary-h").textContent = errs.length === 1 ? "Check this before submitting" : `Check these ${errs.length} things before submitting`;
+    for (const [k, m] of errs) {
+      const li = document.createElement("li"); const a = document.createElement("a");
+      a.href = "#" + inputFor(k).id; a.textContent = `${labels[k]}: ${m}`;
+      a.addEventListener("click", (e) => { e.preventDefault(); const el = inputFor(k); el.focus({ preventScroll: true }); el.closest(".field").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" }); });
+      li.append(a); list.append(li);
+    }
+    box.hidden = false; box.focus();
+  }
+  function applyServerErrors(errors) {
+    const map = { crichero_url: "crichero", tournaments_played: "played" };
+    const list = [];
+    for (const [f, m] of Object.entries(errors || {})) {
+      const k = map[f] || f;
+      if (rules[k]) { setError(k, m); list.push([k, m]); }
+    }
+    if (list.length) showSummary(list);
+    return list.length;
+  }
+
+  async function postJSON(path, body) {
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 30000);
+    try {
+      const r = await fetch(API + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: ctl.signal });
+      let data = null; try { data = await r.json(); } catch (_) {}
+      return { status: r.status, data: data || { ok: false, message: "The server sent an unexpected reply." } };
+    } catch (e) {
+      return { status: 0, data: { ok: false, message: e.name === "AbortError" ? "The server took too long to reply." : "Couldn’t reach the server. Check your connection." } };
+    } finally { clearTimeout(t); }
+  }
+  function putFile(signedUrl, f, onProgress) {
+    // Browser → private Supabase Storage through a one-time signed upload URL issued by /api/register/start.
+    return new Promise((resolve) => {
+      const x = new XMLHttpRequest();
+      x.open("PUT", signedUrl);
+      x.setRequestHeader("content-type", f.type);
+      x.setRequestHeader("x-upsert", "false");
+      x.setRequestHeader("cache-control", "max-age=3600");
+      x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded); };
+      x.onload = () => resolve(x.status >= 200 && x.status < 300);
+      x.onerror = x.ontimeout = () => resolve(false);
+      x.timeout = 120000;
+      x.send(f.file);
+    });
+  }
+  function abortPending() {
+    const p = pending; pending = null;
+    if (p && LIVE) postJSON("/api/register/abort", p);
+  }
+
+  function payload() {
+    return {
+      client_token: clientToken,
+      name: tidy(els.name.value),
+      age: els.age.value.trim(),
+      phone: normPhone(els.phone.value).value,
+      role: els.role.value,
+      tournaments_played: tidy(els.played.value),
+      crichero_url: normCric(els.crichero.value).value,
+      consent: els.consent.checked,
+      photo: { type: files.photo.type, size: files.photo.file.size },
+      payment: { type: files.payment.type, size: files.payment.file.size },
+    };
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    notice.hidden = true;
+    const errs = [];
+    for (const k of order) { const m = check(k); if (m) errs.push([k, m]); }
+    order.forEach((k) => touched.add(k));
+    if (errs.length) { showSummary(errs); return; }
+    $("#summary").hidden = true;
+
+    if (!LIVE) {
+      showNotice("Everything checks out.", "This is a preview, so nothing was submitted. Real registrations go through once the page is connected to its server.", false);
+      notice.scrollIntoView({ block: "nearest" });
+      return;
+    }
+
+    const body = payload();
+    try {
+      let completeWith = pending;
+      if (!completeWith) {
+        setBusy(true, "Checking details…");
+        const s = await postJSON("/api/register/start", body);
+        if (!s.data.ok) {
+          setBusy(false);
+          if (!applyServerErrors(s.data.errors)) showNotice("Registration not sent.", s.data.message || "Something went wrong. Your details are still here, so try again.", true);
+          return;
+        }
+        if (s.data.already && s.data.reference) { setBusy(false); return succeed(s.data.reference, s.data.created_at, body); }
+        const total = files.photo.file.size + files.payment.file.size;
+        const loaded = { photo: 0, payment: 0 };
+        const prog = () => {
+          const pct = Math.min(99, Math.round(((loaded.photo + loaded.payment) / total) * 100));
+          bar.style.width = pct + "%"; btnLabel.textContent = `Uploading images · ${pct}%`;
+        };
+        setBusy(true, "Uploading images · 0%");
+        const ups = s.data.uploads;
+        const [a, b] = await Promise.all([
+          putFile(ups.photo.signedUrl, files.photo, (n) => { loaded.photo = n; prog(); }),
+          putFile(ups.payment.signedUrl, files.payment, (n) => { loaded.payment = n; prog(); }),
+        ]);
+        if (!a || !b) {
+          postJSON("/api/register/abort", { id: s.data.id, upload_token: s.data.upload_token });
+          setBusy(false);
+          showNotice("Upload didn’t finish.", "Your images didn’t reach the server, so nothing was saved. Check your connection and submit again. Your details are still filled in.", true);
+          return;
+        }
+        completeWith = { id: s.data.id, upload_token: s.data.upload_token };
+        pending = completeWith;
+      }
+      setBusy(true, "Saving registration…");
+      bar.style.width = "100%";
+      const c = await postJSON("/api/register/complete", completeWith);
+      if (!c.data.ok) {
+        setBusy(false);
+        if (c.status && c.status < 500) { pending = null; }
+        if (!applyServerErrors(c.data.errors)) showNotice("Registration not confirmed yet.", (c.data.message || "The server didn’t confirm your registration.") + " Submit again to retry. Your details are still here.", true);
+        return;
+      }
+      pending = null;
+      setBusy(false);
+      succeed(c.data.reference, c.data.created_at, body);
+    } catch (err) {
+      setBusy(false);
+      showNotice("Registration not sent.", "Something went wrong on this page. Your details are still here, so try again.", true);
+    }
+  });
+
+  function succeed(reference, createdAt, body) {
+    $("#ref-out").textContent = reference;
+    $("#f-name").textContent = body.name;
+    $("#f-role").textContent = body.role;
+    const d = createdAt ? new Date(createdAt) : new Date();
+    $("#f-time").textContent = d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+    $("#form-view").hidden = true;
+    const dv = $("#done-view"); dv.hidden = false; dv.focus();
+    dv.scrollIntoView({ block: "start" });
+    try { sessionStorage.removeItem("ts-client-token"); } catch (_) {}
+  }
+  $("#copy-ref").addEventListener("click", async (e) => {
+    const t = $("#ref-out").textContent;
+    try { await navigator.clipboard.writeText(t); e.target.textContent = "Copied"; setTimeout(() => (e.target.textContent = "Copy reference"), 1800); }
+    catch (_) { const r = document.createRange(); r.selectNodeContents($("#ref-out")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+  });
+  const printBtn = $("#print-btn");
+  if (!LIVE) printBtn.closest(".done-actions").hidden = true;
+  printBtn.addEventListener("click", () => window.print());
+
+  sheetReady = true;
+  updateOver();
+})();
+</script>
+<script>
+/* Deliveries: a ball is only bowled when something happens.
+   - an entry becomes valid: one delivery from the logo's ball into that entry's numbered ring (or onto the field if the ring is out of view)
+   - all six required entries done: the over is complete, the submit button pulses once
+   - a valid submit: the ball is bowled at the far stumps and the bails fly
+   Decorative only: pointer-events none, skipped entirely under prefers-reduced-motion. */
+(() => {
+  "use strict";
+  if (!("animate" in Element.prototype)) return;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+  const layer = document.createElement("div");
+  layer.className = "throw-layer";
+  layer.setAttribute("aria-hidden", "true");
+  document.body.appendChild(layer);
+  const logo = document.querySelector(".brand .face");
+  const band = document.querySelector(".top");
+  const bandBottom = () => (band ? band.getBoundingClientRect().bottom : 0);
+  const centre = (el) => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, r]; };
+  const visible = (r) => r.top > bandBottom() - 4 && r.bottom < innerHeight && r.width > 0;
+  const add = (cls) => { const e = document.createElement("i"); e.className = cls; layer.appendChild(e); return e; };
+  const done = (a, e) => a.finished.then(() => e.remove(), () => e.remove());
+
+  function from() {
+    if (window.__bally) return window.__bally.pos();
+    if (logo) { const r = logo.getBoundingClientRect(); return [r.left + r.width * 0.695, r.top + r.height * 0.33]; }
+    return [innerWidth / 2, 0];
+  }
+
+  // one ball flight along a parabola; resolves on landing
+  function fly(sx, sy, ex, ey, { apexScale = 0.42, minApex = 50, spinDir = 1 } = {}) {
+    return new Promise((resolve) => {
+      const dist = Math.hypot(ex - sx, ey - sy);
+      const apex = Math.min(260, dist * apexScale) + minApex;
+      const flight = Math.min(820, 380 + dist * 0.45);
+      const spin = spinDir * (ex > sx ? 1 : -1) * (540 + dist * 0.6);
+      const frames = [];
+      for (let k = 0; k <= 18; k++) {
+        const t = k / 18;
+        const x = sx + (ex - sx) * t;
+        const y = sy + (ey - sy) * t - apex * 4 * t * (1 - t);
+        frames.push({ transform: `translate(${x}px, ${y}px) rotate(${spin * t}deg) scale(${0.7 + 0.3 * t})`, opacity: 1 });
+      }
+      frames.push({ transform: `translate(${ex}px, ${ey}px) rotate(${spin}deg) scale(0.6)`, opacity: 0 });
+      const ball = add("tball");
+      const anim = ball.animate(frames, { duration: flight * 1.08, easing: "linear", fill: "forwards" });
+      done(anim, ball);
+      setTimeout(resolve, flight);
+    });
+  }
+
+  function impact(x, y, { flecks = 6, ringScale = 1.6 } = {}) {
+    const ring = add("tring");
+    done(ring.animate([
+      { transform: `translate(${x}px, ${y}px) scale(0.3)`, opacity: 0.95 },
+      { transform: `translate(${x}px, ${y}px) scale(${ringScale})`, opacity: 0 }
+    ], { duration: 520, easing: "cubic-bezier(0.16, 1, 0.3, 1)", fill: "forwards" }), ring);
+    for (let k = 0; k < flecks; k++) {
+      const f = add("tfleck");
+      const a = (k / flecks) * Math.PI * 2 + 0.3;
+      const d = 18 + (k % 3) * 7;
+      done(f.animate([
+        { transform: `translate(${x}px, ${y}px) scale(1)`, opacity: 0.9 },
+        { transform: `translate(${x + Math.cos(a) * d}px, ${y + Math.sin(a) * d}px) scale(0.3)`, opacity: 0 }
+      ], { duration: 460, easing: "cubic-bezier(0.16, 1, 0.3, 1)", fill: "forwards" }), f);
+    }
+  }
+
+  // 1. each completed entry is one delivery
+  function deliver(li) {
+    const ring = li.querySelector(".n");
+    const key = li.dataset.row;
+    let target = ring, [ex, ey, r] = centre(ring);
+    if (!visible(r)) {
+      const field = document.getElementById(key);
+      const host = field && (field.closest(".drop") || field);
+      if (!host) return;
+      const fr = host.getBoundingClientRect();
+      if (!visible(fr)) return;
+      target = null;
+      ex = host.classList.contains("drop") ? fr.left + fr.width / 2 : fr.left + 22;
+      ey = host.classList.contains("drop") ? fr.top + 24 : fr.top + fr.height / 2;
+    }
+    li.dataset.arriving = "1";
+    const [sx, sy] = from();
+    fly(sx, sy, ex, ey).then(() => {
+      delete li.dataset.arriving;
+      li.classList.remove("landed"); void li.offsetWidth; li.classList.add("landed");
+      impact(ex, ey, { flecks: target ? 6 : 4 });
+    });
+  }
+  const watched = [...document.querySelectorAll(".sheet li[data-row]")];
+  const was = new Map(watched.map((li) => [li, li.classList.contains("filled")]));
+  const mo = new MutationObserver(() => {
+    for (const li of watched) {
+      const now = li.classList.contains("filled");
+      if (now && !was.get(li) && !reduce.matches) deliver(li);
+      if (!now) delete li.dataset.arriving;
+      was.set(li, now);
+    }
+  });
+  watched.forEach((li) => mo.observe(li, { attributes: true, attributeFilter: ["class"] }));
+
+  // 2. over complete: six required entries in
+  const doneN = document.getElementById("done-n");
+  const btn = document.getElementById("submit");
+  let overDone = false;
+  if (doneN && btn) new MutationObserver(() => {
+    const full = doneN.textContent.trim() === "7";
+    if (full && !overDone && !reduce.matches) { btn.classList.remove("ready"); void btn.offsetWidth; btn.classList.add("ready"); }
+    overDone = full;
+  }).observe(doneN, { childList: true, characterData: true, subtree: true });
+
+  // 3. valid submit: bowl the far stumps, bails fly
+  function bowl() {
+    if (reduce.matches || !btn) return;
+    const stumps = document.querySelector(".pitch-end.bottom svg");
+    if (!stumps) return;
+    const r0 = stumps.getBoundingClientRect();
+    const need = r0.bottom + 36 - innerHeight;
+    if (need > 0 && need < 360) {
+      // bring the far stumps just into view, then bowl
+      window.scrollBy({ top: need, behavior: "smooth" });
+      setTimeout(() => bowlNow(stumps), 480);
+      return;
+    }
+    bowlNow(stumps);
+  }
+  function bowlNow(stumps) {
+    const [ex, ey, r] = centre(stumps);
+    if (!(r.bottom > 0 && r.top < innerHeight)) return;
+    const [sx, sy] = centre(btn);
+    fly(sx, sy - 10, ex, ey, { apexScale: 0.18, minApex: 26 }).then(() => {
+      impact(ex, ey, { flecks: 8, ringScale: 2.2 });
+      const set = stumps.querySelector(".stumpset");
+      if (set) set.animate([{ transform: "rotate(0)" }, { transform: "rotate(-7deg)" }, { transform: "rotate(5deg)" }, { transform: "rotate(-2deg)" }, { transform: "rotate(0)" }], { duration: 520, easing: "ease-out" });
+      [-1, 1].forEach((side) => {
+        const b = add("tbail");
+        const dx = side * (40 + Math.random() * 30), dy = -(70 + Math.random() * 40);
+        done(b.animate([
+          { transform: `translate(${ex + side * 7}px, ${ey}px) rotate(0deg)`, opacity: 1 },
+          { transform: `translate(${ex + dx * 0.6}px, ${ey + dy}px) rotate(${side * 220}deg)`, opacity: 1, offset: 0.5 },
+          { transform: `translate(${ex + dx}px, ${ey + dy * 0.2}px) rotate(${side * 420}deg)`, opacity: 0 }
+        ], { duration: 900, easing: "cubic-bezier(0.2, 0.7, 0.4, 1)", fill: "forwards" }), b);
+      });
+    });
+  }
+  const notice = document.getElementById("notice");
+  const doneView = document.getElementById("done-view");
+  let lastBowl = 0;
+  const outcome = () => {
+    if (Date.now() - lastBowl < 1500) return;
+    const ok = (notice && !notice.hidden && !notice.classList.contains("bad")) || (doneView && !doneView.hidden);
+    if (ok) { lastBowl = Date.now(); requestAnimationFrame(() => requestAnimationFrame(bowl)); }
+  };
+  if (notice) new MutationObserver(outcome).observe(notice, { attributes: true, attributeFilter: ["hidden", "class"], childList: true });
+  if (doneView) new MutationObserver(outcome).observe(doneView, { attributes: true, attributeFilter: ["hidden"] });
+})();
+</script>
+<script>
+/* Rendered materials: if a file exists in assets/gen/, use it; otherwise the flat fallback stays. */
+(() => {
+  const root = document.documentElement;
+  const files = { ball: "ball.png", bail: "bail.png", willow: "willow.webp", grip: "grip.webp", turf: "turf.webp", "bg-d": "bg-desktop.webp", "bg-m": "bg-mobile.webp" };
+  for (const [key, file] of Object.entries(files)) {
+    const url = "assets/gen/" + file;
+    const img = new Image();
+    img.onload = () => { root.style.setProperty(`--${key}-img`, `url("${url}")`); root.setAttribute(`data-has-${key}`, ""); };
+    img.src = url;
+  }
+})();
+</script>
+<script>
+/* Bally: the ball from the logo, as a character, and the player's companion through the form.
+   On load it drops out of the sky and bounces onto the logo. As the player works down the form it hops along:
+   onto the field in use, or, while swiping, onto the field nearest the middle of the screen once the swipe settles.
+   A correct entry gets a wink and a nod; a mistake gets a head shake. The role picked gets its own move (a batter's
+   duck, a bowler's spin, an all-rounder's flip, a keeper's leap for the catch), the photo gets "say cheese", the
+   payment screenshot gets hearts, a full form gets star eyes, a valid submit sends it home cheering.
+   It can also be played with: hover, poke (more pokes, more fed up), hold, drag and throw round the screen, shake
+   until dizzy, double-click for a flip; left alone it falls asleep. No words: the face does all of it.
+   Decorative, so hidden from assistive tech. */
+(() => {
+  "use strict";
+  const logo = document.querySelector(".brand .face");
+  if (!logo) return;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+  const INK = "#173a0b", WHITE = "#fffdf4";
+  const HOME = [0.733, 0.299], RAD = 0.1;   // centre and radius on the logo, as fractions of the logo's width/height
+  const PERCH = ".field, .paycard, .actions";
+
+  const root = document.createElement("div"); root.className = "bally"; root.setAttribute("aria-hidden", "true");
+  const canvas = document.createElement("canvas");
+  const hit = document.createElement("div"); hit.className = "bally-hit";
+  root.append(canvas); document.body.append(root, hit);
+  const ctx = canvas.getContext("2d");
+
+  // ---------- state ----------
+  let r = 24, size = 0, dpr = 1;
+  const pos = { x: -999, y: -999, vx: 0, vy: 0 };
+  let rot = 0, vrot = 0, tilt = 0;
+  let mode = "drop";               // drop | home | perch | hop | held | drag | fly | return
+  let perchKey = null, hopA = null, follow = null, scrollIdleAt = 0, homeUntil = 0, dropAt = performance.now() + 350;
+  const sq = { v: 0, x: 0 };       // squash spring (x > 0: wide and short)
+  const hop = { y: 0, v: 0 };      // hop spring, in px (negative is up)
+  let shake = 0, flip = 0, flipV = 0, spinV = 0, nopeT = -1, nodT = -1;
+  const gaze = { x: 0, y: 0.3, tx: 0, ty: 0.3 };
+  let pointer = null, pointerAt = 0, pointerIn = true, focusEl = null;
+  let lastInput = performance.now(), blinkAt = lastInput + 1800, blinkT = -1;
+  let mood = "wheee", moodUntil = 99999 + performance.now(), lockUntil = 0;
+  let pokes = 0, lastPoke = 0, flyStart = 0;
+  const vHist = [];
+  let reversals = [], lastDir = 0, dizzyUntil = 0, sleepy = 0;
+
+  // ---------- expressions ----------
+  const M = {
+    idle:      { open: 1,    pupil: 0.56, brow: 0,    lift: 0,    smile: 0.55, mouth: 0,    blush: 0.15, eyes: "normal" },
+    curious:   { open: 1.12, pupil: 0.62, brow: 0,    lift: 0.35, smile: 0.4,  mouth: 0.12, blush: 0.2,  eyes: "normal" },
+    hover:     { open: 1,    pupil: 0.6,  brow: 0,    lift: 0.2,  smile: 0.95, mouth: 0.45, blush: 0.55, eyes: "happy" },
+    giggle:    { open: 1,    pupil: 0.6,  brow: 0,    lift: 0.2,  smile: 1,    mouth: 0.75, blush: 0.8,  eyes: "happy" },
+    grin:      { open: 1,    pupil: 0.6,  brow: 0,    lift: 0.25, smile: 1,    mouth: 0.6,  blush: 0.6,  eyes: "happy" },
+    wink:      { open: 1,    pupil: 0.58, brow: 0,    lift: 0.15, smile: 0.95, mouth: 0.3,  blush: 0.55, eyes: "wink" },
+    surprised: { open: 1.28, pupil: 0.38, brow: 0,    lift: 0.7,  smile: 0,    mouth: 0.75, blush: 0.1,  eyes: "normal" },
+    held:      { open: 1.08, pupil: 0.55, brow: 0,    lift: 0.3,  smile: 0.75, mouth: 0.35, blush: 0.35, eyes: "normal" },
+    hug:       { open: 1,    pupil: 0.6,  brow: 0,    lift: 0.1,  smile: 0.85, mouth: 0.15, blush: 1,    eyes: "happy" },
+    wheee:     { open: 1.22, pupil: 0.44, brow: 0,    lift: 0.55, smile: 0.85, mouth: 1,    blush: 0.45, eyes: "normal" },
+    oof:       { open: 1,    pupil: 0.5,  brow: 0.4,  lift: 0,    smile: -0.2, mouth: 0.35, blush: 0.2,  eyes: "squint" },
+    dizzy:     { open: 1,    pupil: 0.5,  brow: -0.3, lift: 0.2,  smile: 0,    mouth: 0,    blush: 0.2,  eyes: "dizzy", wavy: 1 },
+    annoyed:   { open: 0.62, pupil: 0.62, brow: 1,    lift: 0,    smile: -0.55, mouth: 0,   blush: 0,    eyes: "normal" },
+    nope:      { open: 1.02, pupil: 0.56, brow: -0.8, lift: 0.25, smile: -0.4, mouth: 0,    blush: 0,    eyes: "normal", sweat: 1 },
+    focus:     { open: 0.9,  pupil: 0.62, brow: 0.15, lift: 0,    smile: 0.3,  mouth: 0,    blush: 0.1,  eyes: "normal" },
+    excited:   { open: 1,    pupil: 0.6,  brow: 0,    lift: 0.4,  smile: 1,    mouth: 0.8,  blush: 0.7,  eyes: "star" },
+    cheer:     { open: 1,    pupil: 0.6,  brow: 0,    lift: 0.5,  smile: 1,    mouth: 1,    blush: 0.9,  eyes: "star" },
+    cheese:    { open: 1,    pupil: 0.6,  brow: 0,    lift: 0.3,  smile: 1,    mouth: 0.95, blush: 0.9,  eyes: "happy" },
+    love:      { open: 1,    pupil: 0.6,  brow: 0,    lift: 0.15, smile: 0.9,  mouth: 0.2,  blush: 1,    eyes: "happy", heart: 1 },
+    duck:      { open: 1,    pupil: 0.5,  brow: 0.3,  lift: 0,    smile: 0.1,  mouth: 0.3,  blush: 0.2,  eyes: "squint" },
+    catch:     { open: 1.22, pupil: 0.42, brow: 0,    lift: 0.6,  smile: 0.9,  mouth: 0.7,  blush: 0.4,  eyes: "normal" },
+    lonely:    { open: 1,    pupil: 0.56, brow: -0.5, lift: 0.2,  smile: -0.15, mouth: 0,   blush: 0,    eyes: "normal" },
+    sleepy:    { open: 0.38, pupil: 0.56, brow: -0.1, lift: 0,    smile: 0.2,  mouth: 0,    blush: 0.1,  eyes: "normal" },
+    sleep:     { open: 1,    pupil: 0.56, brow: 0,    lift: 0,    smile: 0,    mouth: 0.22, blush: 0.15, eyes: "closed", zzz: 1 },
+  };
+  const P = { ...M.idle, wavy: 0, sweat: 0, zzz: 0, heart: 0 };
+  const NUM = ["open", "pupil", "brow", "lift", "smile", "mouth", "blush", "wavy", "sweat", "zzz", "heart"];
+
+  function feel(m, ms = 1000, { force = false, lock = 0 } = {}) {
+    const now = performance.now();
+    if (!force && now < lockUntil) return;
+    mood = m; moodUntil = now + ms;
+    if (lock) lockUntil = now + lock;
+  }
+  const kick = (h, s = 0) => { if (reduce.matches) return; hop.v -= h; sq.v += s; };
+  const yes = () => { if (!reduce.matches) nodT = 0; };      // a nod: the face dips twice
+  const no = () => { if (!reduce.matches) nopeT = 0; };      // a head shake: the face turns side to side
+  function wake() {
+    const now = performance.now();
+    if (sleepy >= 2) feel("surprised", 650, { force: true });
+    sleepy = 0; lastInput = now;
+  }
+
+  // ---------- where Bally belongs ----------
+  const base = () => Math.max(14, logo.offsetWidth * RAD);
+  function home() {
+    const b = logo.getBoundingClientRect();
+    return { x: b.left + b.width * HOME[0], y: b.top + b.height * HOME[1], r: Math.max(12, b.width * RAD), key: "home" };
+  }
+  const hostOf = (el) => (el && el.closest && !el.closest(".brand, .sheet") ? el.closest(PERCH) : null);
+  function perchOf(host) {
+    if (!host || host.closest("[hidden]")) return null;
+    const a = host.matches(".paycard") ? host : host.querySelector(".input, .select, .drop, .check, #submit") || host;
+    const b = a.getBoundingClientRect();
+    if (!b.width) return null;
+    const pr = Math.max(13, Math.min(19, base() * 0.72));
+    // sitting on the top edge of the box, near its right end
+    return { x: Math.min(b.right - pr - 10, innerWidth - pr - 4), y: b.top - pr + 3, r: pr, key: host };
+  }
+  const topLimit = () => logo.getBoundingClientRect().bottom + 4;
+  const inView = (p) => !!p && p.y - p.r > topLimit() && p.y + p.r < innerHeight - 4;
+  function pickFollow() {
+    const lim = topLimit(), mid = lim + (innerHeight - lim) * 0.4;
+    let best = null, bd = Infinity;
+    document.querySelectorAll(PERCH).forEach((h) => {
+      const p = perchOf(h);
+      if (!inView(p)) return;
+      const d = Math.abs(p.y - mid);
+      if (d < bd) { bd = d; best = h; }
+    });
+    follow = best;
+  }
+  function target(now) {
+    if (now < homeUntil) return home();
+    const fh = hostOf(focusEl);
+    if (fh) { const p = perchOf(fh); if (inView(p)) return p; }
+    if (scrollY > 40) {
+      if (!follow || !inView(perchOf(follow))) pickFollow();
+      if (follow) { const p = perchOf(follow); if (inView(p)) return p; }
+    }
+    return home();
+  }
+  function resize() {
+    const rb = base();
+    dpr = Math.min(2.5, devicePixelRatio || 1);
+    size = Math.ceil(rb * 5.4);
+    canvas.width = canvas.height = Math.ceil(size * dpr);
+    canvas.style.width = canvas.style.height = size + "px";
+  }
+  const centreOf = (el) => { const b = el.getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; };
+  function aimAt(p) {
+    const dx = p[0] - pos.x, dy = p[1] - pos.y;
+    gaze.tx = dx / (Math.abs(dx) + 200); gaze.ty = dy / (Math.abs(dy) + 200);
+  }
+  const settled = () => mode === "home" || mode === "perch";
+
+  // ---------- play ----------
+  let down = null;
+  hit.addEventListener("pointerdown", (e) => {
+    if (!settled()) return;
+    e.preventDefault(); wake();
+    hit.setPointerCapture(e.pointerId);
+    down = { x: e.clientX, y: e.clientY, ox: e.clientX - pos.x, oy: e.clientY - pos.y, t: performance.now(), moved: false, from: mode };
+    mode = "held"; vHist.length = 0; reversals = [];
+    if (!reduce.matches) sq.v += 6;
+    feel("held", 99999, { force: true });
+  });
+  hit.addEventListener("pointermove", (e) => {
+    if (!down) return;
+    const now = performance.now();
+    if (!down.moved && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 6) { down.moved = true; mode = "drag"; }
+    if (mode !== "drag") return;
+    const nx = e.clientX - down.ox, ny = e.clientY - down.oy;
+    vHist.push([now, nx, ny]); while (vHist.length && now - vHist[0][0] > 90) vHist.shift();
+    // shaking: count left/right reversals in the last 700 ms
+    const dir = Math.sign(nx - pos.x);
+    if (dir && lastDir && dir !== lastDir && Math.abs(nx - pos.x) > 2) reversals.push(now);
+    if (dir) lastDir = dir;
+    reversals = reversals.filter((t) => now - t < 700);
+    if (reversals.length >= 5) { dizzyUntil = now + 2600; reversals = []; }
+    pos.x = nx; pos.y = ny;
+    feel(now < dizzyUntil ? "dizzy" : "held", 99999, { force: true });
+  });
+  function release() {
+    if (!down) return;
+    const now = performance.now(), d = down; down = null;
+    if (!d.moved) {
+      mode = d.from;
+      if (now - d.t > 550) { feel("hug", 1200, { force: true }); kick(120, -4); return; }
+      poke(); return;
+    }
+    let vx = 0, vy = 0;
+    if (vHist.length > 1) { const a = vHist[0], b = vHist[vHist.length - 1], dt = Math.max(16, b[0] - a[0]) / 1000; vx = (b[1] - a[1]) / dt; vy = (b[2] - a[2]) / dt; }
+    const sp = Math.hypot(vx, vy);
+    if (sp > 350 && !reduce.matches) {
+      const k = Math.min(1, 3200 / sp); pos.vx = vx * k; pos.vy = vy * k; mode = "fly"; flyStart = now;
+      feel(now < dizzyUntil ? "dizzy" : "wheee", 99999, { force: true });
+    } else { pos.vx = pos.vy = 0; mode = "return"; feel(now < dizzyUntil ? "dizzy" : "idle", now < dizzyUntil ? 2000 : 0, { force: true }); }
+  }
+  hit.addEventListener("pointerup", release);
+  hit.addEventListener("pointercancel", release);
+  // the first click makes Bally hop, so the second may land just off it: accept a double-click near Bally
+  addEventListener("dblclick", (e) => {
+    if (Math.hypot(e.clientX - pos.x, e.clientY - pos.y) > r * 2.2) return;
+    if (!reduce.matches) flipV = -26; feel("cheer", 1100, { force: true, lock: 900 }); kick(520, 8);
+  });
+
+  function poke() {
+    const now = performance.now();
+    pokes = now - lastPoke < 2600 ? pokes + 1 : 1; lastPoke = now;
+    if (!reduce.matches) shake = pokes >= 6 ? 0.6 : 0;
+    if (pokes <= 2) { feel(pokes === 1 ? "giggle" : "wink", 800, { force: true }); kick(260, 9); }
+    else if (pokes === 3) { feel("surprised", 700, { force: true }); kick(420, 12); }
+    else if (pokes <= 5) { dizzyUntil = now + 1600; feel("dizzy", 1600, { force: true }); kick(200, 6); }
+    else { feel("annoyed", 2200, { force: true, lock: 1800 }); kick(80, -6); }
+  }
+
+  addEventListener("pointermove", (e) => {
+    if (e.pointerType !== "mouse") { wake(); return; }   // touch has no hover; taps are handled on Bally itself
+    pointer = [e.clientX, e.clientY]; pointerAt = performance.now(); pointerIn = true; wake();
+    if (mood === "lonely") feel("idle", 0, { force: true });
+  }, { passive: true });
+  document.documentElement.addEventListener("pointerleave", (e) => { if (e.pointerType !== "mouse") return; pointerIn = false; if (settled()) feel("lonely", 99999); });
+  document.documentElement.addEventListener("pointerenter", (e) => { if (e.pointerType !== "mouse") return; if (!pointerIn || mood === "lonely") feel("wink", 700, { force: true }); pointerIn = true; });
+  let lastScroll = scrollY, lastScrollAt = 0;
+  addEventListener("scroll", () => {
+    const now = performance.now(), dy = scrollY - lastScroll, dt = Math.max(8, now - lastScrollAt);
+    lastScroll = scrollY; lastScrollAt = now; wake();
+    scrollIdleAt = now + 170;                 // when the swipe settles, hop to the field in the middle
+    gaze.ty = Math.max(-1, Math.min(1, dy / 60));
+    if (Math.abs(dy / dt) > 4 && settled()) feel("surprised", 400);
+  }, { passive: true });
+  addEventListener("keydown", wake);
+
+  // ---------- the form ----------
+  document.addEventListener("focusin", (e) => { if (e.target.matches && e.target.matches("input, select, textarea, button")) { focusEl = e.target; wake(); } });
+  document.addEventListener("focusout", () => { focusEl = null; });
+  document.addEventListener("input", (e) => {
+    wake();
+    if (e.target.type === "checkbox") { if (e.target.checked) { feel("wink", 900, { force: true }); yes(); kick(160, 5); } return; }
+    if (e.target.type === "file") return;
+    if (performance.now() > moodUntil || mood === "focus" || mood === "curious" || mood === "idle") feel("focus", 900);
+    kick(60, 2);   // a little bob per keystroke
+  });
+  // the role picked gets its own move
+  const role = document.getElementById("role");
+  if (role) role.addEventListener("change", () => {
+    const v = role.value, rm = reduce.matches;
+    if (v === "Only batter") { feel("duck", 650, { force: true, lock: 600 }); if (!rm) sq.v += 34; setTimeout(() => { feel("grin", 700, { force: true }); kick(380, 8); }, 380); }
+    else if (v === "Only bowler") { feel("wheee", 800, { force: true, lock: 700 }); if (!rm) spinV = 26; kick(240, 6); setTimeout(() => feel("wink", 800, { force: true }), 700); }
+    else if (v === "All rounder") { feel("cheer", 1000, { force: true, lock: 900 }); if (!rm) flipV = -26; kick(520, 8); }
+    else if (v === "Wicket keeper") { feel("catch", 900, { force: true, lock: 800 }); kick(720, 10); setTimeout(() => { feel("hug", 700, { force: true }); }, 650); }
+  });
+  const copy = document.getElementById("copy-upi");
+  if (copy) copy.addEventListener("click", () => { feel("wink", 900, { force: true }); kick(200, 6); });
+  // an entry lands: wink and nod (the delivery leaves from Bally at the same moment)
+  const seen = new WeakSet();
+  document.querySelectorAll(".sheet li[data-row]").forEach((li) => {
+    if (li.classList.contains("filled")) seen.add(li);
+    new MutationObserver(() => {
+      if (li.classList.contains("filled") && !seen.has(li)) {
+        seen.add(li);
+        const all = document.querySelectorAll(".sheet li[data-row]:not([data-row=crichero])");
+        const k = li.dataset.row;
+        if ([...all].every((x) => x.classList.contains("filled"))) { feel("excited", 1800, { force: true, lock: 1400 }); kick(480, 10); if (!reduce.matches) flipV = -24; }
+        else if (k === "role") { /* the role has its own move, from the change handler */ }
+        else if (k === "photo") { feel("cheese", 1300, { force: true, lock: 900 }); kick(260, 8); }
+        else if (k === "payment") { feel("love", 1600, { force: true, lock: 1000 }); kick(220, 6); }
+        else { feel("wink", 1100, { force: true }); yes(); kick(240, 7); }
+      } else if (!li.classList.contains("filled")) seen.delete(li);
+    }).observe(li, { attributes: true, attributeFilter: ["class"] });
+  });
+  // a mistake: shake the head
+  document.querySelectorAll("#name, #age, #phone, #role, #played, #crichero, #photo, #payment, #consent").forEach((el) => {
+    new MutationObserver(() => { if (el.getAttribute("aria-invalid") === "true") { feel("nope", 1500, { force: true, lock: 700 }); no(); } })
+      .observe(el, { attributes: true, attributeFilter: ["aria-invalid"] });
+  });
+  const doneView = document.getElementById("done-view"), summary = document.getElementById("summary"), notice = document.getElementById("notice");
+  let cheered = 0;
+  const outcome = () => {
+    const ok = (notice && !notice.hidden && !notice.classList.contains("bad")) || (doneView && !doneView.hidden);
+    if (ok && Date.now() - cheered > 1500) {
+      cheered = Date.now(); homeUntil = performance.now() + 5000;   // hop home to the logo and cheer there
+      feel("cheer", 4200, { force: true, lock: 3000 }); if (!reduce.matches) flipV = -24; kick(600, 10);
+    } else if (notice && !notice.hidden && notice.classList.contains("bad")) { feel("nope", 1800, { force: true }); no(); }
+  };
+  if (notice) new MutationObserver(outcome).observe(notice, { attributes: true, attributeFilter: ["hidden", "class"], childList: true });
+  if (doneView) new MutationObserver(outcome).observe(doneView, { attributes: true, attributeFilter: ["hidden"] });
+  if (summary) new MutationObserver(() => { if (!summary.hidden) { feel("nope", 1800, { force: true }); no(); } }).observe(summary, { attributes: true, attributeFilter: ["hidden"] });
+
+  // ---------- drawing ----------
+  function star(x, y, R) {
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? R * 0.45 : R; ctx.lineTo(x + Math.cos(a) * q, y + Math.sin(a) * q); }
+    ctx.closePath(); ctx.fillStyle = "#ffd23a"; ctx.fill(); ctx.stroke();
+  }
+  function eye(x, y, rx, ry, style, px, py, side, blink) {
+    if (style === "wink" && side > 0) style = "happy";
+    if (style === "happy") { ctx.beginPath(); ctx.moveTo(x - rx, y + ry * 0.2); ctx.quadraticCurveTo(x, y - ry * 1.1, x + rx, y + ry * 0.2); ctx.stroke(); return; }
+    if (style === "closed") { ctx.beginPath(); ctx.moveTo(x - rx, y); ctx.quadraticCurveTo(x, y + ry * 0.8, x + rx, y); ctx.stroke(); return; }
+    if (style === "squint") { ctx.beginPath(); ctx.moveTo(x - side * rx, y - ry * 0.5); ctx.lineTo(x + side * rx * 0.7, y); ctx.lineTo(x - side * rx, y + ry * 0.5); ctx.stroke(); return; }
+    if (style === "star") { star(x, y, rx * 1.15); return; }
+    if (style === "dizzy") {
+      ctx.beginPath();
+      for (let a = 0; a < Math.PI * 5; a += 0.2) { const q = (a / (Math.PI * 5)) * rx; ctx.lineTo(x + Math.cos(a * side + rot * 4) * q, y + Math.sin(a * side + rot * 4) * q); }
+      ctx.stroke(); return;
+    }
+    const h = ry * blink;
+    if (h < ry * 0.15) { ctx.beginPath(); ctx.moveTo(x - rx, y); ctx.quadraticCurveTo(x, y + ry * 0.25, x + rx, y); ctx.stroke(); return; }
+    ctx.beginPath(); ctx.ellipse(x, y, rx, h, 0, 0, Math.PI * 2); ctx.fillStyle = WHITE; ctx.fill();
+    ctx.save(); ctx.clip();
+    const pr = rx * P.pupil, cx = x + px * (rx - pr) * 0.85, cy = y + py * (ry - pr) * 0.7;
+    ctx.beginPath(); ctx.arc(cx, cy, pr, 0, Math.PI * 2); ctx.fillStyle = INK; ctx.fill();
+    ctx.beginPath(); ctx.arc(cx - pr * 0.35, cy - pr * 0.38, pr * 0.34, 0, Math.PI * 2); ctx.fillStyle = WHITE; ctx.fill();
+    ctx.restore();
+    ctx.beginPath(); ctx.ellipse(x, y, rx, h, 0, 0, Math.PI * 2); ctx.stroke();
+  }
+  function draw(now, sx, sy) {
+    const S = size, s = dpr;
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(s, 0, 0, s, (S / 2) * s, (S / 2) * s);
+    // contact shadow, only when sitting on the logo
+    if (mode === "home" || mode === "perch" || mode === "held") {
+      const lift = Math.min(1, -hop.y / (r * 2));
+      ctx.beginPath(); ctx.ellipse(0, r * 0.96 - hop.y, r * 0.8 * (1 - lift * 0.4), r * 0.16 * (1 - lift * 0.4), 0, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(40, 25, 0, ${0.32 * (1 - lift * 0.6)})`; ctx.fill();
+    }
+    ctx.translate(0, r); ctx.scale(sx, sy); ctx.translate(0, -r);
+    ctx.rotate(rot + flip + tilt);
+    // body: a lime ball with a soft cartoon finish, no seam
+    const g = ctx.createRadialGradient(-r * 0.35, -r * 0.45, r * 0.1, 0, 0, r * 1.05);
+    g.addColorStop(0, "#f2ff9a"); g.addColorStop(0.45, "#c3e432"); g.addColorStop(1, "#6f9a12");
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+    ctx.lineWidth = Math.max(1.5, r * 0.07); ctx.strokeStyle = INK; ctx.stroke();
+    ctx.save(); ctx.beginPath(); ctx.arc(0, 0, r * 0.965, 0, Math.PI * 2); ctx.clip();
+    ctx.beginPath(); ctx.ellipse(-r * 0.38, -r * 0.55, r * 0.32, r * 0.17, -0.5, 0, Math.PI * 2); ctx.fillStyle = "rgba(255, 255, 240, 0.55)"; ctx.fill();
+    ctx.beginPath(); ctx.arc(r * 0.15, r * 0.2, r * 1.05, 0.15, 1.45); ctx.lineWidth = r * 0.08; ctx.strokeStyle = "rgba(255, 255, 220, 0.28)"; ctx.stroke();
+    // face, turned a little toward what Bally is looking at
+    const fx = gaze.x * r * 0.24, fy = gaze.y * r * 0.18 + r * 0.04, k = 1 - Math.abs(gaze.x) * 0.16;
+    ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = INK; ctx.lineWidth = Math.max(1.3, r * 0.075);
+    if (P.blush > 0.02) {
+      ctx.fillStyle = `rgba(255, 105, 90, ${0.45 * P.blush})`;
+      for (const d of [-1, 1]) { ctx.beginPath(); ctx.ellipse(fx + d * r * 0.52 * k, fy + r * 0.2, r * 0.15, r * 0.09, 0, 0, Math.PI * 2); ctx.fill(); }
+    }
+    const style = M[mood] && performance.now() < moodUntil ? M[mood].eyes : M[curMood()].eyes;
+    const ex = r * 0.3 * k, ey = fy - r * 0.15, rx = r * 0.19, ry = r * 0.25 * P.open;
+    const px = Math.max(-1, Math.min(1, gaze.x * 2.4)), py = Math.max(-1, Math.min(1, gaze.y * 2.4));
+    const blink = blinkT >= 0 ? Math.abs(1 - blinkT * 2) : 1;
+    eye(fx - ex, ey, rx, ry, style, px, py, -1, blink);
+    eye(fx + ex, ey, rx, ry, style, px, py, 1, blink);
+    // brows
+    const by = ey - r * 0.27 * Math.max(0.8, P.open) - P.lift * r * 0.12;
+    for (const d of [-1, 1]) {
+      const inner = fx + d * (ex - rx * 0.7), outer = fx + d * (ex + rx * 0.9);
+      ctx.beginPath(); ctx.moveTo(outer, by - P.brow * r * 0.02); ctx.lineTo(inner, by + P.brow * r * 0.11); ctx.stroke();
+    }
+    // mouth
+    const my = fy + r * 0.33, w = r * 0.27 * (0.5 + 0.5 * Math.min(1, Math.abs(P.smile) + P.mouth * 0.3));
+    if (P.wavy > 0.5) {
+      ctx.beginPath(); for (let i = 0; i <= 12; i++) { const t = i / 12; ctx.lineTo(fx - w + t * w * 2, my + Math.sin(t * Math.PI * 3 + now / 90) * r * 0.05); } ctx.stroke();
+    } else if (P.mouth < 0.08) {
+      ctx.beginPath(); ctx.moveTo(fx - w, my - P.smile * r * 0.05); ctx.quadraticCurveTo(fx, my + P.smile * r * 0.3, fx + w, my - P.smile * r * 0.05); ctx.stroke();
+    } else {
+      const ow = Math.abs(P.smile) < 0.25 ? r * (0.1 + 0.06 * P.mouth) : w;
+      const top = my - Math.max(0, P.smile) * r * 0.04, bot = my + P.mouth * r * 0.34 + Math.max(0, P.smile) * r * 0.1;
+      ctx.beginPath(); ctx.moveTo(fx - ow, top);
+      ctx.quadraticCurveTo(fx, top + P.smile * r * 0.1, fx + ow, top);
+      ctx.quadraticCurveTo(fx + ow * 0.9, bot, fx, bot);
+      ctx.quadraticCurveTo(fx - ow * 0.9, bot, fx - ow, top);
+      ctx.closePath(); ctx.fillStyle = INK; ctx.fill(); ctx.stroke();
+      ctx.save(); ctx.clip(); ctx.beginPath(); ctx.ellipse(fx, bot, ow * 0.6, (bot - top) * 0.45, 0, 0, Math.PI * 2); ctx.fillStyle = "#e0584a"; ctx.fill(); ctx.restore();
+    }
+    ctx.restore();
+    // extras outside the body
+    ctx.lineWidth = Math.max(1.2, r * 0.06);
+    if (P.sweat > 0.5) {
+      const sx2 = r * 0.82, sy2 = -r * 0.45 + ((now / 900) % 1) * r * 0.3;
+      ctx.beginPath(); ctx.moveTo(sx2, sy2 - r * 0.2); ctx.quadraticCurveTo(sx2 + r * 0.13, sy2, sx2, sy2 + r * 0.06); ctx.quadraticCurveTo(sx2 - r * 0.13, sy2, sx2, sy2 - r * 0.2);
+      ctx.fillStyle = "#bfe9ff"; ctx.fill(); ctx.strokeStyle = INK; ctx.stroke();
+    }
+    if (P.zzz > 0.5) {
+      ctx.fillStyle = WHITE; ctx.strokeStyle = INK; ctx.lineWidth = r * 0.05;
+      for (let i = 0; i < 3; i++) {
+        const t = ((now / 1600) + i / 3) % 1, zs = r * (0.22 + t * 0.2);
+        ctx.globalAlpha = t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85;
+        ctx.font = `800 ${zs}px system-ui, sans-serif`;
+        const zx = r * (0.7 + t * 0.5), zy = -r * (0.7 + t * 1.0);
+        ctx.strokeText("z", zx, zy); ctx.fillText("z", zx, zy);
+      }
+      ctx.globalAlpha = 1;
+    }
+    if (P.heart > 0.5) {
+      for (let i = 0; i < 2; i++) {
+        const t = ((now / 1300) + i / 2) % 1, hx = r * (i ? 0.95 : -0.85) + Math.sin(t * 6 + i) * r * 0.08, hy = -r * (0.75 + t * 0.9), hs = r * (0.16 + t * 0.06);
+        ctx.globalAlpha = t < 0.15 ? t / 0.15 : 1 - (t - 0.15) / 0.85;
+        ctx.beginPath(); ctx.moveTo(hx, hy + hs * 0.9);
+        ctx.bezierCurveTo(hx - hs * 1.4, hy - hs * 0.1, hx - hs * 0.6, hy - hs * 1.1, hx, hy - hs * 0.35);
+        ctx.bezierCurveTo(hx + hs * 0.6, hy - hs * 1.1, hx + hs * 1.4, hy - hs * 0.1, hx, hy + hs * 0.9);
+        ctx.fillStyle = "#ff5a6e"; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = r * 0.04; ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+    if (style === "dizzy") {
+      for (let i = 0; i < 3; i++) { const a = now / 260 + i * 2.09; ctx.strokeStyle = INK; ctx.lineWidth = r * 0.04; star(Math.cos(a) * r * 0.95, -r * 1.05 + Math.sin(a) * r * 0.18, r * 0.13); }
+    }
+  }
+  function curMood() { return performance.now() < moodUntil ? mood : (sleepy === 2 ? "sleep" : sleepy === 1 ? "sleepy" : "idle"); }
+
+  // ---------- the loop ----------
+  const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+  function land(T, now) {
+    mode = T.key === "home" ? "home" : "perch"; perchKey = T.key; hopA = null; rot = 0;
+    pos.x = T.x; pos.y = T.y; r = T.r; sq.v += reduce.matches ? 0 : 12;
+  }
+  function startHop(T, now) {
+    if (reduce.matches) { land(T, now); return; }
+    const d = Math.hypot(T.x - pos.x, T.y - pos.y);
+    hopA = { x0: pos.x, y0: pos.y, r0: r, t0: now, dur: Math.max(340, Math.min(720, 260 + d * 0.9)), h: Math.max(28, Math.min(150, d * 0.35)), key: T.key, dir: Math.sign(T.x - pos.x) || 1, far: d > 160 };
+    mode = "hop"; sq.v -= 10;
+  }
+  let last = performance.now(), raf = 0, nextWander = 0, nextFidget = last + 7000;
+  function frame(now) {
+    const dt = Math.min(0.04, (now - last) / 1000); last = now;
+    const still = reduce.matches;
+    if (scrollIdleAt && now > scrollIdleAt) { scrollIdleAt = 0; if (!hostOf(focusEl)) pickFollow(); }
+    const T = target(now);
+    // idle → sleepy → asleep
+    const idleFor = now - lastInput;
+    sleepy = settled() ? (idleFor > 24000 ? 2 : idleFor > 15000 ? 1 : 0) : 0;
+    if (settled() && pointer && pointerIn && sleepy === 0 && now > lockUntil && (now > moodUntil || mood === "hover" || mood === "curious" || mood === "idle")) {
+      const d = Math.hypot(pointer[0] - pos.x, pointer[1] - pos.y);
+      if (d < r * 1.1) feel("hover", 250); else if (d < r * 4.5) feel("curious", 250);
+    }
+    const m = M[curMood()];
+    const kk = still ? 1 : 1 - Math.exp(-dt * 12);
+    for (const n of NUM) P[n] += ((m[n] || 0) - P[n]) * kk;
+    P.pupil = m.pupil;
+    // where to look
+    if (mode === "fly" || mode === "hop") { const vx = mode === "hop" ? hopA.dir : pos.vx, vy = mode === "hop" ? 0.3 : pos.vy, sp = Math.hypot(vx, vy) || 1; gaze.tx = vx / sp * 0.6; gaze.ty = vy / sp * 0.6; }
+    else if (mood === "annoyed" && now < moodUntil) { gaze.tx = -0.55; gaze.ty = -0.15; }
+    else if (focusEl && hostOf(focusEl) === perchKey && mode === "perch") { const b = focusEl.getBoundingClientRect(); aimAt([b.left + Math.min(b.width * 0.35, 120), b.top + b.height / 2]); }
+    else if (focusEl) aimAt(centreOf(focusEl));
+    else if (pointer && now - pointerAt < 3500 && pointerIn) aimAt(pointer);
+    else if (mood === "lonely") { gaze.tx = Math.sin(now / 700) * 0.6; gaze.ty = 0; }
+    else if (now > nextWander) {
+      nextWander = now + 1800 + Math.random() * 2600;
+      const li = document.querySelector(".sheet li:not(.filled)");
+      if (li && Math.random() < 0.5) aimAt(centreOf(li)); else { gaze.tx = (Math.random() - 0.5) * 1.1; gaze.ty = (Math.random() - 0.3) * 0.7; }
+    }
+    // nod yes / shake no override the gaze for a moment
+    tilt = 0;
+    if (nodT >= 0) { nodT += dt / 0.62; if (nodT >= 1) nodT = -1; else { gaze.ty = 0.1 + Math.sin(nodT * Math.PI * 4) * 0.55 * (1 - nodT); gaze.y = gaze.ty; } }
+    if (nopeT >= 0) { nopeT += dt / 0.8; if (nopeT >= 1) nopeT = -1; else { const s = Math.sin(nopeT * Math.PI * 6) * (1 - nopeT); gaze.tx = s * 0.85; gaze.x = gaze.tx; gaze.ty = 0.1; tilt = s * 0.14; } }
+    const gk = still ? 1 : 1 - Math.exp(-dt * 10);
+    gaze.x += (gaze.tx - gaze.x) * gk; gaze.y += (gaze.ty - gaze.y) * gk;
+    // blink
+    if (!still && sleepy < 2) {
+      if (blinkT < 0 && now > blinkAt) blinkT = 0;
+      if (blinkT >= 0) { blinkT += dt / 0.15; if (blinkT >= 1) { blinkT = -1; blinkAt = now + 1800 + Math.random() * 3600; } }
+    }
+    // idle fidget: a small hop now and then
+    if (!still && settled() && sleepy === 0 && now > nextFidget) { nextFidget = now + 6000 + Math.random() * 6000; if (now > moodUntil) kick(150, 5); }
+    // movement
+    if (mode === "drop") {
+      if (still || !logo.complete) { if (logo.complete) { land(T, now); feel("wink", 900, { force: true }); } }
+      else if (now > dropAt) {
+        if (pos.y < -900) { pos.x = T.x; pos.y = -T.r * 3; pos.vy = 0; r = T.r; }
+        pos.x = T.x; pos.vy += 2600 * dt; pos.y += pos.vy * dt; rot += dt * 6;
+        if (pos.y >= T.y) {
+          pos.y = T.y;
+          if (pos.vy > 260) { pos.vy = -pos.vy * 0.42; sq.v += Math.min(30, pos.vy / -30); feel(pos.vy < -500 ? "oof" : "surprised", 260, { force: true }); setTimeout(() => { if (mode === "drop") feel("wheee", 99999, { force: true }); }, 260); }
+          else { land(T, now); feel("wink", 1000, { force: true }); yes(); }
+        }
+      }
+    } else if (mode === "home" || mode === "perch") {
+      if (T.key !== perchKey) startHop(T, now);
+      else { pos.x = T.x; pos.y = T.y; r += (T.r - r) * (1 - Math.exp(-dt * 10)); }
+    }
+    if (mode === "hop") {
+      if (T.key !== hopA.key) { hopA = { ...hopA, x0: pos.x, y0: pos.y, r0: r, t0: now, key: T.key, dir: Math.sign(T.x - pos.x) || 1 }; }
+      const t = Math.min(1, (now - hopA.t0) / hopA.dur), e = ease(t);
+      pos.x = hopA.x0 + (T.x - hopA.x0) * e;
+      pos.y = hopA.y0 + (T.y - hopA.y0) * e - Math.sin(Math.PI * t) * hopA.h;
+      r = hopA.r0 + (T.r - hopA.r0) * e;
+      rot = hopA.far ? hopA.dir * Math.PI * 2 * e : hopA.dir * Math.sin(Math.PI * t) * 0.35;
+      if (t >= 1) land(T, now);
+    } else if (mode === "fly") {
+      pos.vy += 2600 * dt; pos.x += pos.vx * dt; pos.y += pos.vy * dt;
+      vrot = pos.vx / r * 0.9; rot += vrot * dt;
+      const W = innerWidth, H = innerHeight; let hitWall = 0;
+      if (pos.x < r) { pos.x = r; pos.vx = Math.abs(pos.vx) * 0.72; hitWall = Math.abs(pos.vx); }
+      if (pos.x > W - r) { pos.x = W - r; pos.vx = -Math.abs(pos.vx) * 0.72; hitWall = Math.abs(pos.vx); }
+      if (pos.y < r) { pos.y = r; pos.vy = Math.abs(pos.vy) * 0.72; hitWall = Math.abs(pos.vy); }
+      if (pos.y > H - r) { pos.y = H - r; pos.vy = -Math.abs(pos.vy) * 0.66; pos.vx *= 0.9; hitWall = Math.abs(pos.vy); }
+      if (hitWall > 260) { sq.v += Math.min(22, hitWall / 60); feel("oof", 220, { force: true }); setTimeout(() => { if (mode === "fly") feel(performance.now() < dizzyUntil ? "dizzy" : "wheee", 99999, { force: true }); }, 230); }
+      const t = now - flyStart, sp = Math.hypot(pos.vx, pos.vy);
+      if ((t > 1500 && sp < 380) || t > 3200) { mode = "return"; feel(now < dizzyUntil ? "dizzy" : "held", 99999, { force: true }); }
+    } else if (mode === "return") {
+      if (still) { land(T, now); }
+      else {
+        const K = 70, C = 2 * Math.sqrt(K) * 0.75;
+        pos.vx += ((T.x - pos.x) * K - pos.vx * C) * dt; pos.vy += ((T.y - pos.y) * K - pos.vy * C) * dt;
+        pos.x += pos.vx * dt; pos.y += pos.vy * dt; r += (T.r - r) * (1 - Math.exp(-dt * 6));
+        const tr = Math.round(rot / (Math.PI * 2)) * Math.PI * 2; rot += (tr - rot) * (1 - Math.exp(-dt * 6));
+        if (Math.hypot(T.x - pos.x, T.y - pos.y) < 1.5 && Math.hypot(pos.vx, pos.vy) < 30) {
+          land(T, now);
+          feel(now < dizzyUntil ? "dizzy" : "giggle", now < dizzyUntil ? dizzyUntil - now : 800, { force: true });
+        }
+      }
+    }
+    // springs
+    let sx = 1, sy = 1, tx = 0;
+    if (!still) {
+      hop.v += (-hop.y * 240 - hop.v * 13) * dt; hop.y += hop.v * dt;
+      sq.v += (-sq.x * 320 - sq.v * 11) * dt; sq.x += sq.v * dt;
+      flip += flipV * dt; if (flip <= -Math.PI * 2) { flip = 0; flipV = 0; }
+      if (spinV) { rot += spinV * dt; spinV *= Math.exp(-dt * 2.2); if (spinV < 1.5) { spinV = 0; } }
+      else if (settled() && rot) { const tr = Math.round(rot / (Math.PI * 2)) * Math.PI * 2; rot += (tr - rot) * (1 - Math.exp(-dt * 10)); if (Math.abs(tr - rot) < 0.01) rot = 0; }
+      if (shake > 0) { shake = Math.max(0, shake - dt * 2); tx = Math.sin(now / 1000 * 60) * r * 0.12 * shake; }
+      const breathe = settled() ? Math.sin(now / 1000 * 2.2) * 0.018 : 0;
+      const q = Math.max(-0.35, Math.min(0.35, sq.x * 0.02));
+      sx = 1 + q - breathe * 0.5; sy = 1 - q + breathe;
+      if (mood === "cheer" && now < moodUntil && settled() && hop.y > -2 && hop.v >= 0) kick(300, 6);
+    }
+    const lift = settled() || mode === "held" ? hop.y : 0;
+    root.style.transform = `translate(${(pos.x + tx - size / 2).toFixed(1)}px, ${(pos.y + lift - size / 2).toFixed(1)}px)`;
+    hit.style.width = hit.style.height = (r * 2).toFixed(1) + "px";
+    hit.style.transform = `translate(${(pos.x - r).toFixed(1)}px, ${(pos.y + lift - r).toFixed(1)}px)`;
+    hit.style.visibility = mode === "drop" ? "hidden" : "visible";
+    const onScreen = pos.y + r * 3 > 0 && pos.y - r * 3 < innerHeight;
+    if (onScreen) draw(now, sx, sy);
+    raf = requestAnimationFrame(frame);
+  }
+  resize();
+  addEventListener("resize", resize, { passive: true });
+  document.addEventListener("visibilitychange", () => { cancelAnimationFrame(raf); if (!document.hidden) { last = performance.now(); raf = requestAnimationFrame(frame); } });
+  raf = requestAnimationFrame(frame);
+  window.__bally = { mood: curMood, mode: () => mode, pos: () => [pos.x, pos.y], perch: () => (perchKey === "home" ? "home" : perchKey && perchKey.querySelector ? (perchKey.querySelector("input, select, button")?.id || perchKey.className) : String(perchKey)) };   // used by the deliveries (they leave from Bally) and by tests
+})();
+</script>
+<script>
+/* Layout: on narrow screens the payment card and the uploads move onto the strip, between details and consent,
+   so the order is details → pay → upload the screenshot → confirm → submit. On wide screens they sit on the outfield. */
+(() => {
+  const pay = document.getElementById("paycard"), up = document.getElementById("uploads");
+  const paySlot = document.getElementById("pay-slot"), upSlot = document.getElementById("up-slot"), moved = document.getElementById("moved-slot");
+  const mq = matchMedia("(max-width: 1180px)");
+  function place() {
+    if (mq.matches) { if (pay.parentNode !== moved) { moved.append(pay, up); } paySlot.hidden = upSlot.hidden = true; }
+    else { if (pay.parentNode !== paySlot) { paySlot.append(pay); upSlot.append(up); } paySlot.hidden = upSlot.hidden = false; }
+  }
+  place(); mq.addEventListener("change", place);
+  // the logo stays on top; past the first few pixels of scroll it shrinks into a header band
+  const bar = document.getElementById("brand-bar");
+  const compact = () => bar.classList.toggle("compact", scrollY > 24);
+  compact(); addEventListener("scroll", compact, { passive: true });
+  const btn = document.getElementById("copy-upi"), id = document.getElementById("upi-id");
+  btn.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(id.textContent.trim()); btn.textContent = "Copied"; setTimeout(() => (btn.textContent = "Copy UPI ID"), 1800); }
+    catch (_) { const r = document.createRange(); r.selectNodeContents(id); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+  });
+})();
+</script>
+
+</body></html>
