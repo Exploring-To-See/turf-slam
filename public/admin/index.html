@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Turf Slam Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,700;1,800&family=Barlow:wght@400;500;600&display=swap">
+<style>
+:root {
+  color-scheme: dark;
+  --outfield: #26642a; --strip: #46742e; --text: #f4f8ee; --muted: #e0ead3;
+  --chalk: rgba(255,255,250,.92); --line: rgba(255,255,250,.22);
+  --lime: #c8f03a; --lime-ink: #10140a; --ink: #17200d; --cream: #f3e4c0;
+  --card: rgba(10,38,12,.62); --danger: #ffc4b8; --danger-solid: #d8412f; --amber: #ffd479;
+  --f-display: "Barlow Condensed","Arial Narrow",sans-serif; --f-body: "Barlow","Segoe UI",system-ui,sans-serif;
+  --ease: cubic-bezier(.16,1,.3,1);
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; color: var(--text); font: 400 1rem/1.5 var(--f-body); min-height: 100vh;
+  background: url("/assets/turf-outfield.webp") center top / 1024px auto repeat, var(--outfield); }
+::selection { background: var(--lime); color: var(--lime-ink); }
+button, input, select, textarea { font: inherit; }
+h1, h2, h3 { margin: 0; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- login ---------- */
+.login { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+.login-card { width: min(420px, 100%); padding: 28px 26px 26px; border-radius: 20px; text-align: center;
+  background: url("/assets/turf-strip.webp") center top / 100% auto, var(--strip); box-shadow: 0 0 0 2px rgba(255,255,250,.10), 0 24px 60px rgba(0,0,0,.4); }
+.login-card img { width: min(230px, 70%); height: auto; }
+.login-card h1 { font: 800 italic 2rem/1 var(--f-display); text-transform: uppercase; margin: 6px 0 4px; }
+.login-card p { margin: 0 0 18px; color: var(--muted); font-size: .95rem; }
+.login-card form { display: grid; gap: 14px; text-align: left; }
+
+.label { display: block; font-weight: 600; font-size: .95rem; margin: 0 0 6px; }
+.label .opt { font-weight: 400; color: var(--muted); font-size: .85rem; }
+.input, .select, .textarea { width: 100%; min-height: 46px; padding: 10px 14px; border-radius: 12px; border: 2px solid transparent;
+  background: var(--cream); color: var(--ink); outline: none; transition: border-color 160ms var(--ease), box-shadow 160ms var(--ease); }
+.textarea { min-height: 84px; resize: vertical; }
+.select { appearance: none; padding-right: 40px; cursor: pointer;
+  background: var(--cream) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='M3 6l5 5 5-5' fill='none' stroke='%2317200d' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") right 14px center / 16px no-repeat; }
+.input::placeholder, .textarea::placeholder { color: rgba(23,32,13,.55); }
+.input:focus, .select:focus, .textarea:focus { border-color: var(--lime); box-shadow: 0 0 0 3px rgba(200,240,58,.45); }
+[aria-invalid="true"] { border-color: #ff8f7a !important; box-shadow: 0 0 0 2px rgba(255,143,122,.55) !important; }
+.err { margin: 6px 0 0; color: var(--danger); font-size: .88rem; min-height: 0; }
+.err:empty { display: none; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 0 22px; border: 0; border-radius: 14px; cursor: pointer;
+  background: var(--lime); color: var(--lime-ink); font: 800 italic 1.15rem/1 var(--f-display); text-transform: uppercase; letter-spacing: .02em;
+  box-shadow: 0 14px 28px -14px rgba(0,0,0,.7); transition: transform 160ms var(--ease), filter 160ms var(--ease); }
+.btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+.btn:disabled { opacity: .6; cursor: progress; transform: none; }
+.btn:focus-visible, .mini:focus-visible, .chip:focus-visible, .pay-btn:focus-visible, .thumb:focus-visible { outline: 3px solid var(--lime); outline-offset: 2px; }
+.mini { min-height: 38px; padding: 0 14px; border-radius: 10px; cursor: pointer; border: 1.5px solid var(--line); background: rgba(255,255,250,.08); color: var(--text); font-weight: 600; font-size: .9rem; }
+.mini:hover { background: rgba(255,255,250,.16); }
+.mini.danger { color: var(--danger); border-color: rgba(255,143,122,.5); }
+.mini.danger:hover { background: rgba(216,65,47,.3); }
+.mini.solid-danger { background: var(--danger-solid); border-color: transparent; color: #fff; }
+.form-err { margin: 0; padding: 10px 12px; border-radius: 10px; background: rgba(70,10,5,.5); color: var(--danger); font-size: .92rem; }
+
+/* ---------- console ---------- */
+.top { position: sticky; top: 0; z-index: 20; background: url("/assets/turf-strip.webp") center top / 100% auto, var(--strip); border-bottom: 3px solid var(--chalk); box-shadow: 0 6px 14px rgba(0,0,0,.26); }
+.top-in { max-width: 1240px; margin: 0 auto; padding: 8px 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.top img { height: 46px; width: auto; display: block; }
+.top h1 { font: 800 italic 1.5rem/1 var(--f-display); text-transform: uppercase; }
+.top .sp { flex: 1; }
+.live { display: inline-flex; align-items: center; gap: 8px; font-size: .88rem; color: var(--muted); }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 0 0 rgba(200,240,58,.7); animation: pulse 2s infinite; }
+.live.off .dot { background: #ff8f7a; animation: none; }
+@keyframes pulse { 70% { box-shadow: 0 0 0 9px rgba(200,240,58,0); } 100% { box-shadow: 0 0 0 0 rgba(200,240,58,0); } }
+.who { font-size: .9rem; color: var(--muted); }
+main { max-width: 1240px; margin: 0 auto; padding: 18px 16px 80px; }
+
+.stats { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 10px; }
+.stat { background: var(--card); border: 1.5px solid var(--line); border-radius: 16px; padding: 12px 14px; }
+.stat b { display: block; font: 800 italic 2.1rem/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.stat span { font-size: .85rem; color: var(--muted); }
+.stat.ok b { color: var(--lime); } .stat.due b { color: var(--danger); } .stat.wait b { color: var(--amber); }
+
+.tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 16px 0 12px; }
+.tools .input { flex: 1 1 240px; width: auto; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1.5px solid var(--line); background: rgba(255,255,250,.06); color: var(--text); cursor: pointer; font-weight: 600; font-size: .9rem; }
+.chip[aria-pressed="true"] { background: var(--lime); color: var(--lime-ink); border-color: transparent; }
+
+.list { display: grid; gap: 10px; }
+.empty { padding: 40px 16px; text-align: center; color: var(--muted); background: var(--card); border: 1.5px dashed var(--line); border-radius: 16px; }
+.row { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(0,1.3fr) minmax(0,1.2fr) auto; gap: 8px 18px; align-items: center;
+  background: var(--card); border: 1.5px solid var(--line); border-left: 6px solid var(--line); border-radius: 16px; padding: 12px 16px; }
+.row.s-verified { border-left-color: var(--lime); }
+.row.s-due { border-left-color: #ff8f7a; }
+.row.s-awaiting_review { border-left-color: var(--amber); }
+.row.fresh { animation: fresh 8s ease-out; }
+@keyframes fresh { 0%, 70% { background: rgba(200,240,58,.28); box-shadow: 0 0 0 3px rgba(200,240,58,.7); } 100% { background: var(--card); box-shadow: none; } }
+.who-name { font: 700 1.35rem/1.1 var(--f-display); text-transform: uppercase; letter-spacing: .01em; overflow-wrap: anywhere; }
+.ref { display: inline-block; margin-top: 2px; font-size: .82rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ref code { color: var(--text); font-weight: 600; }
+.src { margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: .72rem; background: rgba(255,255,250,.14); }
+.meta { font-size: .93rem; display: grid; gap: 2px; min-width: 0; }
+.meta .k { color: var(--muted); font-size: .8rem; }
+.meta a { color: var(--lime); overflow-wrap: anywhere; }
+.pay { display: grid; gap: 8px; justify-items: start; }
+.badge { display: inline-block; padding: 3px 12px; border-radius: 999px; font-weight: 700; font-size: .82rem; letter-spacing: .02em; }
+.b-verified { background: var(--lime); color: var(--lime-ink); }
+.b-due { background: var(--danger-solid); color: #fff; }
+.b-awaiting_review { background: var(--amber); color: #3a2a00; }
+.pay-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.pay-btn { min-height: 38px; padding: 0 14px; border-radius: 10px; border: 1.5px solid var(--line); background: rgba(255,255,250,.08); color: var(--text); cursor: pointer; font-weight: 600; font-size: .9rem; }
+.pay-btn:hover { background: rgba(255,255,250,.18); }
+.pay-btn.rec[aria-pressed="true"] { background: var(--lime); color: var(--lime-ink); border-color: transparent; }
+.pay-btn.due[aria-pressed="true"] { background: var(--danger-solid); color: #fff; border-color: transparent; }
+.acts { display: grid; gap: 6px; justify-items: stretch; }
+.files { display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.thumb { min-height: 34px; padding: 0 12px; border-radius: 8px; border: 1.5px solid var(--line); background: rgba(255,255,250,.08); color: var(--text); cursor: pointer; font-size: .85rem; font-weight: 600; }
+.thumb:hover { background: rgba(255,255,250,.18); }
+.thumb.none { opacity: .5; cursor: default; }
+.note { grid-column: 1 / -1; font-size: .88rem; color: var(--amber); }
+
+/* ---------- dialogs ---------- */
+dialog { border: 0; padding: 0; border-radius: 20px; width: min(640px, calc(100vw - 24px)); max-height: calc(100vh - 24px); color: var(--text);
+  background: url("/assets/turf-strip.webp") center top / 100% auto, var(--strip); box-shadow: 0 0 0 2px rgba(255,255,250,.12), 0 30px 80px rgba(0,0,0,.6); }
+dialog::backdrop { background: rgba(5,20,6,.72); }
+.dlg { padding: 20px 22px 22px; display: grid; gap: 14px; max-height: calc(100vh - 24px); overflow: auto; }
+.dlg h2 { font: 800 italic 1.8rem/1 var(--f-display); text-transform: uppercase; }
+.fgrid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px 14px; }
+.fgrid .wide { grid-column: 1 / -1; }
+.dlg-acts { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.upl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .9rem; }
+.upl input[type=file] { max-width: 100%; color: var(--muted); }
+.lightbox { width: min(900px, calc(100vw - 24px)); }
+.lightbox img { display: block; max-width: 100%; max-height: calc(100vh - 120px); margin: 0 auto; border-radius: 10px; background: #000; }
+.toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%) translateY(20px); opacity: 0; z-index: 99; pointer-events: none;
+  background: var(--lime); color: var(--lime-ink); font-weight: 700; padding: 12px 20px; border-radius: 999px; box-shadow: 0 14px 30px rgba(0,0,0,.5); transition: all 260ms var(--ease); max-width: calc(100vw - 24px); }
+.toast.show { opacity: 1; transform: translateX(-50%); }
+.toast.bad { background: var(--danger-solid); color: #fff; }
+
+@media (max-width: 980px) {
+  .stats { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .row { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+  .acts { grid-auto-flow: column; justify-content: start; }
+}
+@media (max-width: 560px) {
+  .stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .row { grid-template-columns: minmax(0,1fr); }
+  .fgrid { grid-template-columns: minmax(0,1fr); }
+  .top h1 { font-size: 1.2rem; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<section class="login" id="login-view" hidden>
+  <div class="login-card">
+    <img src="/assets/turf-slam-logo-1200-noball.webp" width="1200" height="452" alt="The Turf Slam">
+    <h1>Admin console</h1>
+    <p>Organisers only. Sign in to manage registrations.</p>
+    <form id="login-form" autocomplete="on">
+      <div>
+        <label class="label" for="u">Username</label>
+        <input class="input" id="u" name="username" type="text" autocomplete="username" autocapitalize="words" spellcheck="false" required>
+      </div>
+      <div>
+        <label class="label" for="p">Password</label>
+        <input class="input" id="p" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <p class="form-err" id="login-err" role="alert" hidden></p>
+      <button class="btn" type="submit" id="login-btn">Sign in</button>
+    </form>
+  </div>
+</section>
+
+<div id="app" hidden>
+  <header class="top">
+    <div class="top-in">
+      <img src="/assets/turf-slam-logo-1200-noball.webp" width="1200" height="452" alt="The Turf Slam">
+      <h1>Admin console</h1>
+      <span class="sp"></span>
+      <span class="live" id="live" role="status"><i class="dot"></i><span id="live-t">Connecting…</span></span>
+      <span class="who" id="who"></span>
+      <button class="mini" id="logout" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="stats" aria-label="Summary">
+      <div class="stat"><b id="s-total">0</b><span>Registrations</span></div>
+      <div class="stat ok"><b id="s-ok">0</b><span>Payment received</span></div>
+      <div class="stat due"><b id="s-due">0</b><span>Payment due</span></div>
+      <div class="stat wait"><b id="s-wait">0</b><span>Awaiting review</span></div>
+      <div class="stat"><b id="s-today">0</b><span>Added today</span></div>
+    </section>
+
+    <div class="tools">
+      <label class="sr" for="q">Search entries</label>
+      <input class="input" id="q" type="search" placeholder="Search name, phone, reference, role…" autocomplete="off">
+      <div class="chips" id="chips" role="group" aria-label="Filter by payment">
+        <button class="chip" type="button" data-f="all" aria-pressed="true">All</button>
+        <button class="chip" type="button" data-f="awaiting_review" aria-pressed="false">Awaiting</button>
+        <button class="chip" type="button" data-f="verified" aria-pressed="false">Received</button>
+        <button class="chip" type="button" data-f="due" aria-pressed="false">Due</button>
+      </div>
+      <button class="mini" id="csv" type="button">Export CSV</button>
+      <button class="btn" id="add" type="button">Add entry</button>
+    </div>
+
+    <div class="list" id="list" aria-live="polite"></div>
+  </main>
+</div>
+
+<dialog id="edit-dlg">
+  <form class="dlg" id="edit-form" novalidate>
+    <h2 id="edit-h">Add entry</h2>
+    <div class="fgrid">
+      <div class="wide"><label class="label" for="f-name">Name</label><input class="input" id="f-name" data-k="name" maxlength="80"><p class="err" data-e="name"></p></div>
+      <div><label class="label" for="f-age">Age</label><input class="input" id="f-age" data-k="age" inputmode="numeric" maxlength="2"><p class="err" data-e="age"></p></div>
+      <div><label class="label" for="f-phone">Phone</label><input class="input" id="f-phone" data-k="phone" inputmode="tel" maxlength="32" placeholder="10-digit or +country code"><p class="err" data-e="phone"></p></div>
+      <div><label class="label" for="f-role">Role</label>
+        <select class="select" id="f-role" data-k="role"><option value="">Select role</option><option>Only batter</option><option>Only bowler</option><option>All rounder</option><option>Wicket keeper</option></select><p class="err" data-e="role"></p></div>
+      <div><label class="label" for="f-jersey">Jersey size</label>
+        <select class="select" id="f-jersey" data-k="jersey_size"><option value="">Select size</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option><option>XXXL</option></select><p class="err" data-e="jersey_size"></p></div>
+      <div class="wide"><label class="label" for="f-played">Tournaments played</label><input class="input" id="f-played" data-k="tournaments_played" maxlength="300"><p class="err" data-e="tournaments_played"></p></div>
+      <div class="wide"><label class="label" for="f-cric">CricHeroes link <span class="opt">(optional)</span></label><input class="input" id="f-cric" data-k="crichero_url" maxlength="300" placeholder="cricheroes.com/…"><p class="err" data-e="crichero_url"></p></div>
+      <div><label class="label" for="f-pay">Payment</label>
+        <select class="select" id="f-pay" data-k="payment_status"><option value="awaiting_review">Awaiting review</option><option value="verified">Received</option><option value="due">Due</option></select></div>
+      <div class="wide"><label class="label" for="f-notes">Organiser notes <span class="opt">(optional)</span></label><textarea class="textarea" id="f-notes" data-k="organiser_notes" maxlength="1000"></textarea></div>
+      <div class="wide"><span class="label">Photograph <span class="opt">(optional, JPG/PNG/WebP, max 8 MB)</span></span>
+        <div class="upl"><input type="file" id="f-photo" accept="image/jpeg,image/png,image/webp"><span id="f-photo-cur"></span></div></div>
+      <div class="wide"><span class="label">Payment screenshot <span class="opt">(optional)</span></span>
+        <div class="upl"><input type="file" id="f-payment" accept="image/jpeg,image/png,image/webp"><span id="f-payment-cur"></span></div></div>
+    </div>
+    <p class="form-err" id="edit-err" role="alert" hidden></p>
+    <div class="dlg-acts">
+      <button class="mini" type="button" id="edit-cancel">Cancel</button>
+      <button class="btn" type="submit" id="edit-save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="del-dlg">
+  <div class="dlg">
+    <h2>Delete entry?</h2>
+    <p id="del-text" style="margin:0"></p>
+    <div class="dlg-acts">
+      <button class="mini" type="button" id="del-cancel">Keep it</button>
+      <button class="mini solid-danger" type="button" id="del-ok">Delete permanently</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="img-dlg" class="lightbox">
+  <div class="dlg">
+    <h2 id="img-h">Image</h2>
+    <img id="img-el" alt="">
+    <div class="dlg-acts"><button class="mini" type="button" id="img-close">Close</button></div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (s, r = document) => r.querySelector(s);
+  const H = { "content-type": "application/json", "x-requested-with": "turf-admin" };
+  const PAY = { awaiting_review: "Awaiting review", verified: "Received", due: "Due" };
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  let rows = [], seen = null, filter = "all", query = "", timer = 0, editing = null, deleting = null;
+
+  async function api(path, opts = {}) {
+    const r = await fetch(path, { credentials: "same-origin", ...opts, headers: { ...H, ...(opts.headers || {}) } });
+    let data = null; try { data = await r.json(); } catch (_) {}
+    if (r.status === 401 && path !== "/api/admin/login") { showLogin(); throw new Error("signed-out"); }
+    return { status: r.status, data: data || { ok: false, message: "Unexpected reply from the server." } };
+  }
+  const post = (p, body, method = "POST") => api(p, { method, body: JSON.stringify(body) });
+
+  let toastT = 0;
+  function toast(msg, bad) {
+    const t = $("#toast"); t.textContent = msg; t.className = "toast show" + (bad ? " bad" : "");
+    clearTimeout(toastT); toastT = setTimeout(() => (t.className = "toast"), 3200);
+  }
+  const fmt = (iso) => iso ? new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "";
+
+  // ---------- views ----------
+  function showLogin() {
+    clearInterval(timer); $("#app").hidden = true; $("#login-view").hidden = false; seen = null; rows = [];
+    setTimeout(() => $("#u").focus(), 0);
+  }
+  function showApp(name) {
+    $("#login-view").hidden = true; $("#app").hidden = false; $("#who").textContent = name;
+    clearInterval(timer); timer = setInterval(() => { if (!document.hidden) refresh(); }, 5000);
+  }
+
+  $("#login-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const b = $("#login-btn"), err = $("#login-err"); err.hidden = true; b.disabled = true;
+    try {
+      const { data } = await post("/api/admin/login", { username: $("#u").value, password: $("#p").value });
+      if (!data.ok) { err.textContent = data.message; err.hidden = false; return; }
+      $("#p").value = ""; await refresh(true);
+    } catch (_) {} finally { b.disabled = false; }
+  });
+  $("#logout").addEventListener("click", async () => { try { await post("/api/admin/logout", {}); } catch (_) {} showLogin(); });
+
+  // ---------- data + live ----------
+  async function refresh(first) {
+    try {
+      const { status, data } = await api("/api/admin/registrations");
+      if (!data.ok) throw new Error(data.message || status);
+      const wasSeen = seen;
+      rows = data.rows;
+      const ids = new Set(rows.map((r) => r.id));
+      const fresh = wasSeen ? rows.filter((r) => !wasSeen.has(r.id)) : [];
+      seen = ids;
+      if ($("#app").hidden) showApp(data.admin);
+      render(new Set(fresh.map((r) => r.id)));
+      if (fresh.length) toast(fresh.length === 1 ? `New registration: ${fresh[0].name}` : `${fresh.length} new registrations`);
+      $("#live").classList.remove("off");
+      $("#live-t").textContent = "Live · updated " + new Date().toLocaleTimeString();
+    } catch (e) {
+      if (e.message === "signed-out") return;
+      $("#live").classList.add("off"); $("#live-t").textContent = "Offline · retrying…";
+    }
+  }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && !$("#app").hidden) refresh(); });
+
+  // ---------- render ----------
+  function visible() {
+    const q = query.trim().toLowerCase();
+    return rows.filter((r) => (filter === "all" || r.payment_status === filter) &&
+      (!q || [r.name, r.phone, r.reference, r.role, r.jersey_size, r.tournaments_played].join(" ").toLowerCase().includes(q)));
+  }
+  function render(freshIds = new Set()) {
+    const today = new Date().toDateString();
+    $("#s-total").textContent = rows.length;
+    $("#s-ok").textContent = rows.filter((r) => r.payment_status === "verified").length;
+    $("#s-due").textContent = rows.filter((r) => r.payment_status === "due").length;
+    $("#s-wait").textContent = rows.filter((r) => r.payment_status === "awaiting_review").length;
+    $("#s-today").textContent = rows.filter((r) => new Date(r.completed_at).toDateString() === today).length;
+    const list = $("#list"), v = visible();
+    if (!v.length) { list.innerHTML = `<div class="empty">${rows.length ? "No entries match your search." : "No registrations yet. New ones appear here live."}</div>`; return; }
+    list.innerHTML = v.map((r) => {
+      const ps = r.payment_status;
+      const cric = r.crichero_url ? `<a href="${esc(r.crichero_url)}" target="_blank" rel="noopener noreferrer">CricHeroes profile</a>` : "";
+      return `<article class="row s-${esc(ps)}${freshIds.has(r.id) ? " fresh" : ""}" data-id="${esc(r.id)}">
+        <div>
+          <div class="who-name">${esc(r.name)}</div>
+          <div class="ref"><code>${esc(r.reference)}</code>${r.source === "admin" ? '<span class="src">added by admin</span>' : ""} · ${esc(fmt(r.completed_at))}</div>
+          <div class="files">
+            <button class="thumb${r.photo_path ? "" : " none"}" type="button" data-act="img" data-kind="photo" ${r.photo_path ? "" : "disabled"}>Photo</button>
+            <button class="thumb${r.payment_path ? "" : " none"}" type="button" data-act="img" data-kind="payment" ${r.payment_path ? "" : "disabled"}>Payment screenshot</button>
+          </div>
+        </div>
+        <div class="meta">
+          <span><span class="k">Age</span> ${esc(r.age)} · <span class="k">Phone</span> <a href="tel:${esc(r.phone)}">${esc(r.phone)}</a></span>
+          <span><span class="k">Role</span> ${esc(r.role)} · <span class="k">Jersey</span> ${esc(r.jersey_size || "—")}</span>
+        </div>
+        <div class="meta">
+          <span><span class="k">Tournaments</span> ${esc(r.tournaments_played)}</span>
+          ${cric}
+        </div>
+        <div class="pay">
+          <span class="badge b-${esc(ps)}">${esc(PAY[ps] || ps)}</span>
+          <div class="pay-btns">
+            <button class="pay-btn rec" type="button" data-act="pay" data-v="verified" aria-pressed="${ps === "verified"}">Payment received</button>
+            <button class="pay-btn due" type="button" data-act="pay" data-v="due" aria-pressed="${ps === "due"}">Mark due</button>
+          </div>
+          <div class="pay-btns">
+            <button class="mini" type="button" data-act="edit">Edit</button>
+            <button class="mini danger" type="button" data-act="del">Delete</button>
+          </div>
+        </div>
+        ${r.organiser_notes ? `<div class="note">Note: ${esc(r.organiser_notes)}</div>` : ""}
+      </article>`;
+    }).join("");
+  }
+  $("#q").addEventListener("input", (e) => { query = e.target.value; render(); });
+  $("#chips").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-f]"); if (!b) return;
+    filter = b.dataset.f; document.querySelectorAll("#chips .chip").forEach((c) => c.setAttribute("aria-pressed", String(c === b))); render();
+  });
+
+  // ---------- row actions ----------
+  $("#list").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-act]"); if (!b) return;
+    const id = b.closest(".row").dataset.id, r = rows.find((x) => x.id === id); if (!r) return;
+    if (b.dataset.act === "pay") {
+      const v = b.dataset.v === r.payment_status ? "awaiting_review" : b.dataset.v; // pressing the active one resets it
+      const prev = r.payment_status; r.payment_status = v; render();
+      const { data } = await post("/api/admin/registrations", { id, payment_status: v }, "PATCH");
+      if (!data.ok) { r.payment_status = prev; render(); toast(data.message || "Couldn’t update payment.", true); }
+      else { Object.assign(r, data.row); render(); toast(v === "verified" ? "Payment marked received" : v === "due" ? "Payment marked due" : "Payment reset to awaiting review"); }
+    } else if (b.dataset.act === "edit") openEdit(r);
+    else if (b.dataset.act === "del") openDelete(r);
+    else if (b.dataset.act === "img") openImage(r, b.dataset.kind);
+  });
+
+  // ---------- add / edit ----------
+  const dlg = $("#edit-dlg"), form = $("#edit-form");
+  const fields = () => [...form.querySelectorAll("[data-k]")];
+  function setErrors(errors = {}) {
+    fields().forEach((f) => { const m = errors[f.dataset.k]; f.setAttribute("aria-invalid", m ? "true" : "false"); const p = form.querySelector(`[data-e="${f.dataset.k}"]`); if (p) p.textContent = m || ""; });
+  }
+  function openEdit(r) {
+    editing = r || null; $("#edit-h").textContent = r ? "Edit entry" : "Add entry";
+    fields().forEach((f) => { f.value = r ? (r[f.dataset.k] ?? "") : (f.dataset.k === "payment_status" ? "awaiting_review" : ""); });
+    setErrors(); $("#edit-err").hidden = true; $("#f-photo").value = ""; $("#f-payment").value = "";
+    $("#f-photo-cur").textContent = r && r.photo_path ? "Current photo kept unless you choose a new one." : "";
+    $("#f-payment-cur").textContent = r && r.payment_path ? "Current screenshot kept unless you choose a new one." : "";
+    dlg.showModal(); $("#f-name").focus();
+  }
+  $("#add").addEventListener("click", () => openEdit(null));
+  $("#edit-cancel").addEventListener("click", () => dlg.close());
+
+  async function putFile(kind, id, file) {
+    const { data } = await post("/api/admin/upload", { id, kind, type: file.type, size: file.size });
+    if (!data.ok) throw new Error(data.message || "Upload failed.");
+    const r = await fetch(data.signedUrl, { method: "PUT", headers: { "content-type": file.type, "x-upsert": "false", "cache-control": "max-age=3600" }, body: file });
+    if (!r.ok) throw new Error("The image didn’t upload.");
+  }
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const save = $("#edit-save"), err = $("#edit-err"); err.hidden = true;
+    const d = {}; fields().forEach((f) => (d[f.dataset.k] = f.value));
+    const { payment_status, organiser_notes, ...details } = d;
+    save.disabled = true; save.textContent = "Saving…";
+    try {
+      const res = editing
+        ? await post("/api/admin/registrations", { id: editing.id, details, payment_status, organiser_notes }, "PATCH")
+        : await post("/api/admin/registrations", { ...details, payment_status, organiser_notes });
+      if (!res.data.ok) { setErrors(res.data.errors); err.textContent = res.data.message || "Couldn’t save."; err.hidden = false; return; }
+      const id = res.data.row.id;
+      try {
+        for (const kind of ["photo", "payment"]) { const f = $("#f-" + kind).files[0]; if (f) await putFile(kind, id, f); }
+      } catch (ue) { err.textContent = "Entry saved, but: " + ue.message; err.hidden = false; await refresh(); return; }
+      dlg.close(); await refresh(); toast(editing ? "Entry updated" : "Entry added");
+    } catch (ex) { if (ex.message !== "signed-out") { err.textContent = "Couldn’t reach the server."; err.hidden = false; } }
+    finally { save.disabled = false; save.textContent = "Save"; }
+  });
+
+  // ---------- delete ----------
+  const ddlg = $("#del-dlg");
+  function openDelete(r) { deleting = r; $("#del-text").textContent = `This permanently removes ${r.name} (${r.reference}) and their uploaded images. It can’t be undone.`; ddlg.showModal(); }
+  $("#del-cancel").addEventListener("click", () => ddlg.close());
+  $("#del-ok").addEventListener("click", async () => {
+    const b = $("#del-ok"); b.disabled = true;
+    try {
+      const { data } = await post("/api/admin/registrations", { id: deleting.id }, "DELETE");
+      if (!data.ok) { toast(data.message || "Couldn’t delete.", true); return; }
+      seen && seen.delete(deleting.id); ddlg.close(); await refresh(); toast("Entry deleted");
+    } catch (_) {} finally { b.disabled = false; }
+  });
+
+  // ---------- images ----------
+  function openImage(r, kind) {
+    $("#img-h").textContent = `${kind === "photo" ? "Photograph" : "Payment screenshot"} · ${r.name}`;
+    const img = $("#img-el"); img.alt = $("#img-h").textContent;
+    img.src = `/api/admin/image?id=${encodeURIComponent(r.id)}&kind=${kind}&t=${Date.now()}`;
+    $("#img-dlg").showModal();
+  }
+  $("#img-close").addEventListener("click", () => $("#img-dlg").close());
+  $("#img-dlg").addEventListener("close", () => { $("#img-el").removeAttribute("src"); });
+  document.querySelectorAll("dialog").forEach((d) => d.addEventListener("click", (e) => { if (e.target === d) d.close(); }));
+
+  // ---------- CSV ----------
+  $("#csv").addEventListener("click", () => {
+    const cols = ["reference", "completed_at", "name", "age", "phone", "role", "jersey_size", "tournaments_played", "crichero_url", "payment_status", "organiser_notes"];
+    const cell = (v) => { let s = String(v ?? ""); if (/^[=+\-@]/.test(s)) s = "'" + s; return `"${s.replace(/"/g, '""')}"`; };
+    const csv = [cols.join(","), ...visible().map((r) => cols.map((c) => cell(r[c])).join(","))].join("\r\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" })); a.download = "turf-slam-registrations.csv"; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+
+  refresh(true).catch(() => {}).finally(() => { if ($("#app").hidden) showLogin(); });
+})();
+</script>
+</body>
+</html>

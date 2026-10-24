@@ -19,3 +19,12 @@ Static page (`public/`) + Vercel serverless functions (`api/`) + Supabase (Postg
 
 ## Local
 `npm i -g vercel && npm i && vercel dev`
+
+## Admin console (`/admin`)
+Login-protected page: live list of registrations (refreshes every 5 s), mark payment received / due,
+add, edit and delete entries, view photos and payment screenshots, search/filter, CSV export.
+
+- Run `supabase/migrations/0003_admin.sql` first on its own (adds the `due` payment state), then `0004_admin_tables.sql`.
+- Admin users live in the `admin_users` table (scrypt password hash, 5 wrong attempts = 15 min lock). Sessions are
+  HttpOnly cookies stored hashed in `admin_sessions` (8 h). No extra env vars needed.
+- To add or reset an admin, insert a row with `hashPassword()` from `api/_lib/admin.js`.

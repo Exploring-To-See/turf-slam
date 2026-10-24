@@ -46,11 +46,11 @@ function checkFile(f, label) {
   return "";
 }
 
-// Returns { errors } or { data } (normalised, ready to insert).
-function validateStart(b) {
+// Player details only (shared by the public form and the admin console).
+// Returns { errors } or { data } (normalised).
+function validateDetails(b) {
   const errors = {};
-  if (!b || typeof b !== "object") return { errors: { _: "Bad request." } };
-  if (!UUID_RE.test(String(b.client_token ?? ""))) errors._ = "Bad request.";
+  b = b && typeof b === "object" ? b : {};
 
   const name = tidy(b.name);
   if (name.length < 2) errors.name = "Enter your full name, at least 2 letters.";
@@ -64,7 +64,6 @@ function validateStart(b) {
   if (phone.error) errors.phone = phone.error;
 
   if (!ROLES.includes(b.role)) errors.role = "Select your playing role.";
-
   if (!SIZES.includes(b.jersey_size)) errors.jersey_size = "Select your jersey size.";
 
   const played = tidy(b.tournaments_played);
@@ -74,8 +73,22 @@ function validateStart(b) {
   const cric = normCric(b.crichero_url);
   if (cric.error) errors.crichero_url = cric.error;
 
-  if (b.consent !== true) errors.consent = "Tick the box to confirm your details and agree to share them.";
+  if (Object.keys(errors).length) return { errors };
+  return {
+    data: {
+      name, age, phone: phone.value, role: b.role, jersey_size: b.jersey_size,
+      tournaments_played: played, crichero_url: cric.value,
+    },
+  };
+}
 
+// Public form, step 1. Returns { errors } or { data } (normalised, ready to insert).
+function validateStart(b) {
+  if (!b || typeof b !== "object") return { errors: { _: "Bad request." } };
+  const d = validateDetails(b);
+  const errors = { ...(d.errors || {}) };
+  if (!UUID_RE.test(String(b.client_token ?? ""))) errors._ = "Bad request.";
+  if (b.consent !== true) errors.consent = "Tick the box to confirm your details and agree to share them.";
   const pe = checkFile(b.photo, "a clear photo of yourself");
   if (pe) errors.photo = pe;
   const ye = checkFile(b.payment, "your payment screenshot");
@@ -83,13 +96,8 @@ function validateStart(b) {
 
   if (Object.keys(errors).length) return { errors };
   return {
-    data: {
-      client_token: b.client_token.toLowerCase(),
-      name, age, phone: phone.value, role: b.role, jersey_size: b.jersey_size,
-      tournaments_played: played, crichero_url: cric.value, consent: true,
-      photo_type: b.photo.type, payment_type: b.payment.type,
-    },
+    data: { ...d.data, client_token: b.client_token.toLowerCase(), consent: true, photo_type: b.photo.type, payment_type: b.payment.type },
   };
 }
 
-module.exports = { validateStart, TYPES, UUID_RE };
+module.exports = { validateStart, validateDetails, checkFile, TYPES, UUID_RE };
