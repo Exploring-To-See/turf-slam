@@ -99,18 +99,15 @@ body.ready .wrap > *:nth-child(4) { transition-delay: 260ms; } body.ready .wrap 
 .ground { min-height: 100vh; display: flex; flex-direction: column; }
 .bar { position: sticky; top: 0; z-index: 30; background: url("/assets/turf-strip.webp") center top / 100% auto, var(--strip);
   border-bottom: 3px solid var(--chalk); box-shadow: 0 6px 14px rgba(0, 0, 0, 0.26); }
-.bar-in { max-width: 1240px; margin: 0 auto; padding: 8px max(16px, env(safe-area-inset-left)); display: flex; align-items: center; gap: 14px; min-height: 60px; }
-.brand img { display: block; height: 44px; width: auto; }
-.bar-title { min-width: 0; flex: 1; line-height: 1.1; }
+.bar-in { max-width: 1240px; margin: 0 auto; padding: 10px max(16px, env(safe-area-inset-left)); display: flex; align-items: center; justify-content: center; min-height: 64px; }
+/* the logo, centred, with Bally (the ball character from the registration page) sitting where the logo's ball goes */
+.brand { position: relative; display: block; line-height: 0; }
+.brand .face { display: block; height: 62px; width: auto; }
+.bally { position: absolute; pointer-events: none; }
+.bally canvas { display: block; width: 100%; height: 100%; }
+.bally-hit { position: absolute; border-radius: 50%; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .kicker { font: 700 0.8rem/1 var(--f-display); letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
-.bar-title b { display: block; margin-top: 4px; font: 800 italic 1.35rem/1 var(--f-display); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.live { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: rgba(8, 34, 10, 0.55); border: 1.5px solid var(--line); font-weight: 600; font-size: 0.88rem; white-space: nowrap; }
-.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--lime); animation: pulse 2s infinite; }
-.live.off .dot { background: var(--danger); animation: none; }
-.live.paused .dot { background: var(--amber); animation: none; }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(200, 240, 58, 0.7); } 70%, 100% { box-shadow: 0 0 0 9px rgba(200, 240, 58, 0); } }
-.fs-btn { min-height: 40px; padding: 0 16px; border-radius: 999px; cursor: pointer; border: 1.5px solid var(--line); background: rgba(8, 34, 10, 0.55); font: 700 1rem/1 var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
-.fs-btn:hover { background: var(--lime); color: var(--lime-ink); border-color: transparent; }
 .wrap { width: 100%; max-width: 1240px; margin: 0 auto; padding: 18px max(16px, env(safe-area-inset-left)) 40px; display: grid; gap: 22px; flex: 1; }
 .foot { text-align: center; padding: 18px 16px 26px; color: var(--muted); font-size: 0.92rem; }
 
@@ -220,12 +217,8 @@ body.ready .wrap > *:nth-child(4) { transition-delay: 260ms; } body.ready .wrap 
 .prow.live.static { animation: glow 1.6s ease-in-out infinite; }
 
 @media (max-width: 600px) {
-  .brand img { height: 36px; }
-  .bar-in { gap: 10px; min-height: 54px; flex-wrap: wrap; padding-block: 6px; }
-  .bar-title { flex: 1 1 140px; }
-  .bar-title b { font-size: 1.05rem; line-height: 1.05; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  .live { padding: 5px 10px; font-size: 0.82rem; }
-  .fs-btn { min-height: 36px; padding: 0 12px; font-size: 0.92rem; }
+  .brand .face { height: 52px; }
+  .bar-in { min-height: 58px; padding-block: 8px; }
   .wrap { gap: 18px; padding-top: 14px; }
   .tabs { width: 100%; } .tabs button { flex: 1; padding: 0 8px; font-size: 1rem; }
   .tabs button small { display: none; }

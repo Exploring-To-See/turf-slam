@@ -1,5 +1,5 @@
 /* Shared player-card stage: markup, change detection and the little animations that go with each change.
-   Used by /auction (normal and full screen) and by the admin console (full screen card + the small live card). */
+   Used by /auction and by the admin console (full screen card + the small live card). */
 (() => {
   "use strict";
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -86,11 +86,12 @@
         <article class="ts-lot"><i class="ts-sweep"></i>
           <div class="ts-photo"><span class="ts-serial">#${String(p.serial).padStart(2, "0")}</span><div class="ts-initials" aria-hidden="true">${esc(initials(p.name))}</div>${photo(p, true)}</div>
           <div class="ts-info">
-            <p class="ts-kicker">On the block</p>
-            <h2 class="ts-name">${esc(p.name)}</h2>
-            <div class="ts-tags"><span class="ts-tag cat" ${ix()}>${esc(c.label)}</span>${p.role ? `<span class="ts-tag" ${ix()}>${esc(p.role)}</span>` : ""}${p.age ? `<span class="ts-tag" ${ix()}>Age ${esc(p.age)}</span>` : ""}</div>
-            ${p.tournaments_played ? `<p class="ts-played" ${ix()}><b>Tournaments played</b>${esc(p.tournaments_played)}</p>` : ""}
-            <dl class="ts-facts"><div ${ix()}><dt>Base price</dt><dd>${INR(c.base_price)}</dd></div><div ${ix()}><dt>Bid step</dt><dd>${INR(c.increment)}</dd></div></dl>
+            <div class="ts-head">
+              <p class="ts-kicker">Under Hammer</p>
+              <h2 class="ts-name">${esc(p.name)}</h2>
+              <div class="ts-tags"><span class="ts-tag cat" ${ix()}>${esc(c.label)}</span>${p.role ? `<span class="ts-tag" ${ix()}>${esc(p.role)}</span>` : ""}${p.age ? `<span class="ts-tag" ${ix()}>Age ${esc(p.age)}</span>` : ""}</div>
+            </div>
+            <dl class="ts-facts">${p.tournaments_played ? `<div class="played${String(p.tournaments_played).length > 26 ? " wide" : ""}" ${ix()}><dt>Tournaments played</dt><dd>${esc(p.tournaments_played)}</dd></div>` : ""}<div ${ix()}><dt>Base price</dt><dd>${INR(c.base_price)}</dd></div></dl>
           </div></article>
         <aside class="ts-board" aria-label="Current bid">${boardInner(snap)}</aside>
         <div class="ts-fx"></div></div>`;

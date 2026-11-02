@@ -32,17 +32,14 @@
 <div class="ground">
   <header class="bar">
     <div class="bar-in">
-      <a class="brand" href="/auction" aria-label="The Turf Slam auction"><img src="/assets/turf-slam-logo-1200-noball.webp" width="1200" height="452" alt="The Turf Slam"></a>
-      <div class="bar-title"><span class="kicker">Player auction</span><b id="ev-title">The Turf Slam</b></div>
-      <div class="live off" id="live" role="status"><i class="dot"></i><span id="live-t">Connecting</span></div>
-      <button class="fs-btn" id="fs-open" type="button" aria-label="Show the player card full screen">Full screen</button>
+      <a class="brand" href="/auction" aria-label="The Turf Slam auction"><img class="face" src="/assets/turf-slam-logo-1200-noball.webp" width="1200" height="452" alt="The Turf Slam"></a>
     </div>
   </header>
 
   <main class="wrap">
     <div class="ticker still" id="ticker" aria-label="Latest sales"><span class="ticker-k">Latest</span><div class="ticker-view"><div class="ticker-track" id="ticker-track"><span>Sales will scroll here as they happen</span></div></div></div>
 
-    <section id="stage" aria-live="polite" aria-label="Player on the block"></section>
+    <section id="stage" aria-live="polite" aria-label="Player under the hammer"></section>
 
     <div>
       <nav class="tabs" role="tablist" aria-label="Auction views" id="tabs">
@@ -92,5 +89,6 @@
 
 <script src="/shared/ts-stage.js"></script>
 <script src="/auction/auction.js"></script>
+<script src="/auction/bally.js"></script>
 </body>
 </html>

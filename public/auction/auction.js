@@ -6,7 +6,6 @@
   const time = (iso) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   let snap = null, version = -1, filter = "all", query = "", failures = 0, tab = "teams";
-  let pres = null;               // full-screen presenter, when open
   const seen = { teams: false, players: false, feed: false };
   const counts = new Map();      // purse numbers, so they roll from the old value to the new one
   let prevSquads = null, prevFeedIds = null, tickerKey = "";
@@ -38,27 +37,25 @@
       if (!d.ok) throw new Error("feed");
       failures = 0;
       if (d.changed) { snap = d; version = d.v; render(); }
-      setLive();
-    } catch (_) { failures++; if (failures > 1) setLive(true); }
+    } catch (_) { failures++; }
     setTimeout(poll, document.hidden ? 6000 : 2000);
-  }
-  function setLive(off) {
-    const el = $("#live"), t = $("#live-t");
-    if (off || !snap) { el.className = "live off"; t.textContent = off ? "Reconnecting" : "Connecting"; return; }
-    const s = snap.state.status;
-    el.className = "live" + (s === "paused" ? " paused" : "");
-    t.textContent = s === "live" ? "Bidding live" : s === "paused" ? "Paused" : "Live feed";
   }
 
   const team = (id) => snap.teams.find((t) => t.id === id);
   const cat = (code) => snap.categories.find((c) => c.code === code);
 
   // ---------- render ----------
+  let seenEvent = null, seenBid = null;
+  function nudgeBally() {
+    const e = snap.events[0], st = snap.state, bid = st.player_id ? `${st.player_id}:${st.price}:${st.leading_team_id}` : null;
+    if (seenEvent !== null && e && e.id !== seenEvent && (e.kind === "sold" || e.kind === "unsold")) document.dispatchEvent(new CustomEvent("bally", { detail: e.kind }));
+    else if (seenBid !== null && bid && bid !== seenBid) document.dispatchEvent(new CustomEvent("bally", { detail: bid.split(":")[0] === seenBid.split(":")[0] ? "bid" : "enter" }));
+    seenEvent = e ? e.id : 0; seenBid = bid || "";
+  }
   function render() {
+    nudgeBally();
     document.title = `${snap.title} · Turf Slam`;
-    $("#ev-title").textContent = snap.title;
     stage.update(snap);
-    if (pres) pres.update(snap);
     renderTicker();
     renderTeams();
     renderPlayers();
@@ -127,7 +124,7 @@
       const t = p.team_id ? team(p.team_id) : null, c = cat(p.category);
       const stat = p.status === "sold" || p.status === "retained"
         ? `<b class="num">${INR(p.price)}</b><small><span class="st ${p.status}">${p.status === "sold" ? "Sold" : "Retained"}</span>${t ? esc(t.name) : ""}</small>`
-        : `<b class="num">${c.base_price ? INR(c.base_price) : "Retention only"}</b><small><span class="st ${p.status}">${p.status === "live" ? "On the block" : p.status === "unsold" ? "Unsold" : "Available"}</span></small>`;
+        : `<b class="num">${c.base_price ? INR(c.base_price) : "Retention only"}</b><small><span class="st ${p.status}">${p.status === "live" ? "Under hammer" : p.status === "unsold" ? "Unsold" : "Available"}</span></small>`;
       return `<li class="prow${p.status === "live" ? " live" : ""}${seen.players ? " static" : ""}" style="--n:${Math.min(n, 24)}">${avatar(p)}
         <div class="pmain"><b>${esc(p.name)}</b><small><span class="cat-dot">${esc(p.category)}</span>${esc(p.role || "Player")}${p.age ? ` · ${esc(p.age)} yrs` : ""}</small></div>
         <div class="pstat">${stat}</div></li>`;
@@ -192,13 +189,6 @@
     seen.players = false; if (snap) renderPlayers();
   });
   $("#q").addEventListener("input", (e) => { query = e.target.value; if (snap) renderPlayers(); });
-
-  // ---------- full screen ----------
-  $("#fs-open").addEventListener("click", () => {
-    if (pres) return;
-    pres = S.openPresent({ title: snap ? snap.title : "The Turf Slam", onClose: () => { pres = null; } });
-    if (snap) pres.update(snap);
-  });
 
   poll();
 })();

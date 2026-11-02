@@ -15,18 +15,19 @@
 .ts-serial { position: absolute; top: 8px; left: 8px; z-index: 2; padding: 3px 10px; border-radius: 8px; background: var(--cream); color: var(--ink); font: 800 1.05rem/1.2 var(--f-display); letter-spacing: 0.04em; }
 .ts-initials { position: absolute; inset: 0; display: grid; place-items: center; font: 800 italic clamp(3rem, 9vw, 5.5rem)/1 var(--f-display); color: var(--cream);
   background: repeating-linear-gradient(90deg, rgba(255, 255, 250, 0.05) 0 22px, transparent 22px 44px), #1b3d1d; }
-.ts-info { min-width: 0; align-self: center; display: grid; gap: 10px; padding: 8px 2px; }
+.ts-info { min-width: 0; align-self: center; display: grid; gap: 16px; padding: 8px 2px; }
+.ts-head { min-width: 0; display: grid; gap: 10px; align-content: center; }
 .ts-kicker { font: 700 0.8rem/1 var(--f-display); letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
 .ts-name { font: 800 italic clamp(1.9rem, 4.2vw, 3rem)/0.98 var(--f-display); text-transform: uppercase; overflow-wrap: anywhere; text-shadow: 0 2px 0 rgba(0, 30, 0, 0.35); text-wrap: balance; margin: 0; }
 .ts-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .ts-tag { display: inline-flex; align-items: center; min-height: 30px; padding: 0 12px; border-radius: 999px; background: rgba(8, 34, 10, 0.55); border: 1.5px solid var(--line); font-weight: 600; font-size: 0.9rem; }
 .ts-tag.cat { background: var(--lime); color: var(--lime-ink); border-color: transparent; font-weight: 700; }
-.ts-played { font-size: 0.95rem; color: var(--muted); overflow-wrap: anywhere; margin: 0; }
-.ts-played b { display: block; font: 700 0.78rem/1 var(--f-display); letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); margin-bottom: 3px; }
-.ts-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
-.ts-facts div { padding: 8px 12px; border-radius: 12px; background: rgba(8, 34, 10, 0.5); border: 1.5px solid rgba(255, 255, 250, 0.12); }
-.ts-facts dt { font: 700 0.75rem/1 var(--f-display); letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); }
-.ts-facts dd { margin: 4px 0 0; font: 700 1.2rem/1.1 var(--f-display); font-variant-numeric: tabular-nums; }
+.ts-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; align-items: stretch; }
+.ts-facts > div { min-width: 0; display: flex; flex-direction: column; justify-content: center; padding: 10px 12px; border-radius: 12px; background: rgba(8, 34, 10, 0.5); border: 1.5px solid rgba(255, 255, 250, 0.12); }
+.ts-facts > div:only-child, .ts-facts > .wide { grid-column: 1 / -1; }
+.ts-facts dt { font: 700 0.75rem/1.1 var(--f-display); letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); }
+.ts-facts dd { margin: 5px 0 0; font: 700 1.3rem/1.1 var(--f-display); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ts-facts .played dd { font: 600 1rem/1.3 var(--f-body); color: var(--cream); }
 
 .ts-board { display: grid; gap: 12px; align-content: start; padding: 18px; overflow: hidden; background: var(--card); border: 1.5px solid var(--line); box-shadow: 0 24px 50px -28px rgba(0, 0, 0, 0.8); }
 .ts-price-wrap { position: relative; padding: 12px 14px 10px; border-radius: 14px; background: var(--night); border: 2px solid rgba(255, 255, 250, 0.35); box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.4); }
@@ -66,7 +67,7 @@
 .ts-stage.is-enter .ts-photo img, .ts-stage.is-enter .ts-initials { animation: tsReveal 850ms var(--ease) calc(var(--d, 0ms) + 260ms) both; }
 .ts-stage.is-enter .ts-serial { animation: tsPop 500ms var(--ease) calc(var(--d, 0ms) + 600ms) both; }
 .ts-stage.is-enter .ts-name { animation: tsNameIn 650ms var(--ease) calc(var(--d, 0ms) + 330ms) both; }
-.ts-stage.is-enter .ts-tags > *, .ts-stage.is-enter .ts-facts > *, .ts-stage.is-enter .ts-played { animation: tsPop 520ms var(--ease) both; animation-delay: calc(var(--d, 0ms) + 520ms + var(--i, 0) * 70ms); }
+.ts-stage.is-enter .ts-tags > *, .ts-stage.is-enter .ts-facts > * { animation: tsPop 520ms var(--ease) both; animation-delay: calc(var(--d, 0ms) + 520ms + var(--i, 0) * 70ms); }
 .ts-stage.is-enter .ts-sweep { animation: tsSweep 1100ms ease calc(var(--d, 0ms) + 420ms) both; }
 .ts-stage.is-enter .ts-price { animation: tsPriceIn 600ms var(--ease) calc(var(--d, 0ms) + 900ms) both; }
 .ts-ball { position: absolute; z-index: 2; left: 0; top: 50%; width: 22px; height: 22px; margin-top: -11px; border-radius: 50%; opacity: 0; pointer-events: none;
@@ -153,7 +154,7 @@
 .ts-present .ts-photo { max-height: 62vh; width: 100%; }
 .ts-present .ts-name { font-size: clamp(2.4rem, 5.4vw, 5rem); }
 .ts-present .ts-tag { min-height: 38px; font-size: 1.1rem; padding: 0 16px; }
-.ts-present .ts-played { font-size: 1.15rem; }
+.ts-present .ts-facts .played dd { font-size: 1.15rem; }
 .ts-present .ts-facts dd { font-size: 1.7rem; } .ts-present .ts-facts dt { font-size: 0.9rem; }
 .ts-present .ts-board { padding: 26px; gap: 16px; }
 .ts-present .ts-price { font-size: clamp(3.4rem, 9.4vw, 8.4rem); }
@@ -183,18 +184,24 @@
   .ts-present .ts-lot { padding: 18px; gap: 16px; }
 }
 @media (max-width: 600px) {
-  .ts-lot { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 12px; padding: 16px 12px 18px; }
-  .ts-name { font-size: clamp(1.6rem, 8vw, 2.2rem); }
-  .ts-facts { grid-template-columns: minmax(0, 1fr); }
+  /* phone: photo and name side by side, the facts in one full-width row under both, so nothing leaves a gap */
+  .ts-lot, .ts-present .ts-lot { grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr); grid-template-areas: "photo head" "facts facts"; gap: 14px 12px; padding: 20px 14px; }
+  .ts-info { display: contents; }
+  .ts-photo { grid-area: photo; align-self: stretch; aspect-ratio: auto; min-height: 168px; max-height: 240px; }
+  .ts-head { grid-area: head; align-self: center; gap: 8px; }
+  .ts-facts { grid-area: facts; }
+  .ts-name { font-size: clamp(1.5rem, 7.4vw, 2.1rem); }
+  .ts-kicker { font-size: 0.72rem; letter-spacing: 0.18em; }
+  .ts-facts dd { font-size: 1.2rem; }
+  .ts-facts .played dd { font-size: 0.95rem; }
   .ts-tag { min-height: 28px; padding: 0 10px; font-size: 0.85rem; }
   .ts-board { padding: 14px; }
   .ts-p-title { display: none; }
-  .ts-present .ts-lot { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
   .ts-present .ts-name { font-size: clamp(1.7rem, 8vw, 2.4rem); }
   .ts-present .ts-price { font-size: clamp(2.6rem, 14vw, 4rem); }
   .ts-present .ts-leader b { font-size: 1.3rem; }
 }
-@media (max-width: 380px) { .ts-lot { grid-template-columns: minmax(0, 1fr); } .ts-photo { max-width: 200px; } }
+@media (max-width: 380px) { .ts-lot, .ts-present .ts-lot { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 12px 10px; padding: 18px 12px; } .ts-tag { font-size: 0.8rem; padding: 0 8px; } }
 @media (prefers-reduced-motion: reduce) {
   .ts-stage *, .ts-mini-enter, .ts-mini-enter *, .ts-ghost *, .ts-chip, .ts-ripple, .ts-confetti, .ts-ball { animation: none !important; }
   .ts-stamp { animation: none !important; } .ts-confetti, .ts-ball, .ts-ripple { display: none; }
