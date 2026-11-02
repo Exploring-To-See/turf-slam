@@ -99,7 +99,7 @@
     const last = snap.events.find((e) => e.kind === "sold" || e.kind === "unsold");
     const recent = last && Date.now() - new Date(last.created_at).getTime() < 10 * 60 * 1000;
     const sold = snap.players.filter((x) => x.status === "sold").length;
-    const nothing = !snap.events.length && !sold;
+    const nothing = (snap.settings && "started_at" in snap.settings) ? !snap.settings.started_at && !sold : !snap.events.length && !sold;
     const left = snap.players.filter((x) => x.status === "pool" && snap.categories.find((c) => c.code === x.category).base_price).length;
     return `<div class="ts-idle"><div class="ts-orbit" aria-hidden="true"><i></i><b></b></div>
       <p class="ts-kicker">${nothing ? "Auction not started" : "Between players"}</p>
@@ -165,6 +165,7 @@
     function update(next) {
       const tr = detect(prev, next), first = !prev;
       prev = next;
+      for (const t of tr) if (["bid", "sold", "unsold", "enter", "swap"].includes(t.type)) document.dispatchEvent(new CustomEvent("bally", { detail: t.type === "swap" ? "enter" : t.type }));
       if (holding) return;                       // rendered from `prev` when the hold ends
       if (first) { root.innerHTML = stageHtml(next); return; }
       const end = tr.find((t) => t.type === "sold" || t.type === "unsold");
@@ -208,24 +209,41 @@
     setTimeout(() => el.remove(), left + 40);
   }
 
-  // ---------- team strip + full-screen shell ----------
+  // ---------- pitch end: popping and bowling creases, return creases and a set of stumps (as on the registration form) ----------
+  const pitchEndHtml = (cls = "") => `<div class="ts-pitch-end ${cls}" aria-hidden="true"><i class="bc"></i><i class="pc"></i><i class="rcl"></i><i class="rcr"></i><svg viewBox="0 0 62 26"><ellipse cx="31" cy="20" rx="26" ry="4" fill="rgba(60,40,15,0.25)"/><g class="stumpset"><g fill="#fffdf4" stroke="#7a5a2a" stroke-width="1"><circle cx="17" cy="12" r="5"/><circle cx="31" cy="12" r="5"/><circle cx="45" cy="12" r="5"/></g><g class="bails" stroke="#e7c27a" stroke-width="3" stroke-linecap="round"><path class="b1" d="M18 12h12"/><path class="b2" d="M32 12h12"/></g></g></svg></div>`;
+  // on a sale the bails fly off every set of stumps on the page
+  document.addEventListener("bally", (e) => { if (e.detail === "sold" && !reduce) document.querySelectorAll(".ts-pitch-end").forEach((el) => restart(el, "out", 1700)); });
+
+  // ---------- team scoreboard + full-screen shell ----------
   function stripHtml(snap) {
-    const lead = snap.state.leading_team_id;
-    return snap.teams.map((t) => `<div class="ts-chip${lead === t.id && snap.state.status === "live" ? " lead" : ""}" style="--c:${esc(t.color)}"><b>${esc(t.short_name || t.name)}</b><span>${short(t.purse_left)}</span><small>${t.squad}/${t.max_squad} · max ${t.slots_left > 0 ? short(t.max_bid) : "full"}</small></div>`).join("");
+    const lead = snap.state.status === "live" ? snap.state.leading_team_id : null;
+    return snap.teams.map((t) => {
+      const pips = Array.from({ length: t.max_squad }, (_, i) => `<i class="${i < t.retained_count ? "r" : i < t.squad ? "b" : ""}"></i>`).join("");
+      return `<div class="ts-chip${lead === t.id ? " lead" : ""}${t.slots_left <= 0 ? " full" : ""}" style="--c:${esc(t.color)}" title="${esc(t.name)}">
+        <div class="ts-chip-top"><b class="ts-chip-name">${esc(t.short_name || t.name)}</b>${lead === t.id ? `<em>Leading</em>` : `<span class="ts-chip-n">${t.squad}/${t.max_squad}</span>`}</div>
+        <span class="ts-chip-purse">${short(t.purse_left)}</span>
+        <span class="ts-pips" aria-label="${t.squad} of ${t.max_squad} players">${pips}</span>
+        <small>${t.slots_left > 0 ? `Max bid <b>${short(t.max_bid)}</b>` : "Squad full"}</small></div>`;
+    }).join("");
   }
-  function openPresent({ title = "The Turf Slam", hint = "", onClose } = {}) {
+  function openPresent({ onClose } = {}) {
     const el = node(`<div class="ts-present" role="dialog" aria-label="Full screen player card">
-      <header class="ts-p-head"><img src="/assets/turf-slam-logo-1200-noball.webp" width="1200" height="452" alt="The Turf Slam">
-        <div class="ts-p-title"><span class="ts-kicker">Player auction</span><b>${esc(title)}</b></div><span style="flex:1"></span>
-        <button type="button" class="ts-p-btn" data-x>Exit full screen</button></header>
+      <i class="ts-ring" aria-hidden="true"></i>
+      <header class="ts-p-head"><span class="brand ts-p-brand"><img class="face" src="/assets/turf-slam-logo-1200-noball.webp" width="1200" height="452" alt="The Turf Slam"></span>${pitchEndHtml("top")}</header>
       <div class="ts-p-main"><div class="ts-stage" data-stage></div></div>
-      <footer class="ts-p-strip" data-strip></footer>${hint ? `<span class="ts-p-hint">${esc(hint)}</span>` : ""}</div>`);
+      <footer class="ts-p-strip" data-strip></footer>
+      <button type="button" class="ts-p-x" data-x aria-label="Exit full screen">Exit</button></div>`);
     document.body.appendChild(el);
     document.body.style.overflow = "hidden";
     const pres = presenter(el.querySelector("[data-stage]")), strip = el.querySelector("[data-strip]");
+    if (window.TSBally) window.TSBally.mount(el.querySelector(".ts-p-brand"));
+    // the exit button only shows while the mouse moves, so the audience sees a clean screen
+    let idleT = 0;
+    const wake = () => { el.classList.add("awake"); clearTimeout(idleT); idleT = setTimeout(() => el.classList.remove("awake"), 1800); };
+    el.addEventListener("mousemove", wake);
     let closed = false;
     const close = () => {
-      if (closed) return; closed = true;
+      if (closed) return; closed = true; clearTimeout(idleT);
       document.removeEventListener("fullscreenchange", onFs); document.removeEventListener("keydown", onKey, true);
       if (document.fullscreenElement === el) document.exitFullscreen().catch(() => {});
       el.remove(); document.body.style.overflow = ""; onClose && onClose();
@@ -238,5 +256,5 @@
     return { update(snap) { if (closed) return; pres.update(snap); strip.innerHTML = stripHtml(snap); }, close, el };
   }
 
-  window.TSStage = { esc, INR, short, initials, detect, presenter, playMini, applyStamp, mini, openPresent, countTo, confetti, restart, reduce };
+  window.TSStage = { pitchEndHtml, esc, INR, short, initials, detect, presenter, playMini, applyStamp, mini, openPresent, countTo, confetti, restart, reduce };
 })();

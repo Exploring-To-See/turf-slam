@@ -10,6 +10,7 @@
   const counts = new Map();      // purse numbers, so they roll from the old value to the new one
   let prevSquads = null, prevFeedIds = null, tickerKey = "";
   const stage = S.presenter($("#stage"));
+  $("#pitch-top").outerHTML = S.pitchEndHtml();
   const tabs = [...document.querySelectorAll("#tabs [data-tab]")];
 
   // ---------- opening ----------
@@ -45,15 +46,7 @@
   const cat = (code) => snap.categories.find((c) => c.code === code);
 
   // ---------- render ----------
-  let seenEvent = null, seenBid = null;
-  function nudgeBally() {
-    const e = snap.events[0], st = snap.state, bid = st.player_id ? `${st.player_id}:${st.price}:${st.leading_team_id}` : null;
-    if (seenEvent !== null && e && e.id !== seenEvent && (e.kind === "sold" || e.kind === "unsold")) document.dispatchEvent(new CustomEvent("bally", { detail: e.kind }));
-    else if (seenBid !== null && bid && bid !== seenBid) document.dispatchEvent(new CustomEvent("bally", { detail: bid.split(":")[0] === seenBid.split(":")[0] ? "bid" : "enter" }));
-    seenEvent = e ? e.id : 0; seenBid = bid || "";
-  }
   function render() {
-    nudgeBally();
     document.title = `${snap.title} · Turf Slam`;
     stage.update(snap);
     renderTicker();

@@ -97,15 +97,13 @@ body.ready .wrap > *:nth-child(4) { transition-delay: 260ms; } body.ready .wrap 
 
 /* ---------- frame ---------- */
 .ground { min-height: 100vh; display: flex; flex-direction: column; }
-.bar { position: sticky; top: 0; z-index: 30; background: url("/assets/turf-strip.webp") center top / 100% auto, var(--strip);
-  border-bottom: 3px solid var(--chalk); box-shadow: 0 6px 14px rgba(0, 0, 0, 0.26); }
-.bar-in { max-width: 1240px; margin: 0 auto; padding: 10px max(16px, env(safe-area-inset-left)); display: flex; align-items: center; justify-content: center; min-height: 64px; }
-/* the logo, centred, with Bally (the ball character from the registration page) sitting where the logo's ball goes */
+/* the top of the ground, as on the registration form: the 22-yard strip with the logo (and Bally) and the creases and stumps */
+.bar { position: relative; z-index: 2; }
+.bar-in { position: relative; width: min(600px, 100%); margin: 0 auto; padding-top: 12px; display: grid; justify-items: center;
+  background: url("/assets/turf-strip.webp") center top / 100% auto, var(--strip); box-shadow: 0 0 0 2px rgba(255, 255, 250, 0.10), 0 0 60px rgba(0, 0, 0, 0.25); }
 .brand { position: relative; display: block; line-height: 0; }
-.brand .face { display: block; height: 62px; width: auto; }
-.bally { position: absolute; pointer-events: none; }
-.bally canvas { display: block; width: 100%; height: 100%; }
-.bally-hit { position: absolute; border-radius: 50%; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.brand .face { display: block; width: min(260px, 64vw); height: auto; }
+.bar .ts-pitch-end { width: 100%; }
 .kicker { font: 700 0.8rem/1 var(--f-display); letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(200, 240, 58, 0.7); } 70%, 100% { box-shadow: 0 0 0 9px rgba(200, 240, 58, 0); } }
 .wrap { width: 100%; max-width: 1240px; margin: 0 auto; padding: 18px max(16px, env(safe-area-inset-left)) 40px; display: grid; gap: 22px; flex: 1; }
@@ -217,8 +215,8 @@ body.ready .wrap > *:nth-child(4) { transition-delay: 260ms; } body.ready .wrap 
 .prow.live.static { animation: glow 1.6s ease-in-out infinite; }
 
 @media (max-width: 600px) {
-  .brand .face { height: 52px; }
-  .bar-in { min-height: 58px; padding-block: 8px; }
+  .bar-in { width: min(600px, calc(100% - 24px)); }
+  .brand .face { width: min(220px, 60vw); }
   .wrap { gap: 18px; padding-top: 14px; }
   .tabs { width: 100%; } .tabs button { flex: 1; padding: 0 8px; font-size: 1rem; }
   .tabs button small { display: none; }

@@ -37,6 +37,14 @@ max bid limited by the remaining purse with enough held back to fill the squad.
 - Run `supabase/migrations/0005_auction.sql` (tables are all prefixed `ts_`; bidding rules are enforced in Postgres functions).
 - Admin → Players: add registered players, set categories, retain players. Admin → Live control: bring on a player,
   tap a team (or keys 1-9, 0) to bid, Sold / Unsold / Undo / Pause. Admin → Teams and Rules and setup: everything editable.
+- Run `supabase/migrations/0006_queue_start.sql` too: the queue, the Start auction switch, the payment check and
+  category changes for retained players. The admin console and auction pages need it.
+- Admin → Players → **Category list check** compares the official A / B list (`public/shared/roster.js`) with the
+  registrations: names on the list but not registered, paid but not on the list, unpaid, duplicates. **Apply list categories**
+  adds the paid players with their list category, fixes categories, and makes every retained player who is not A an A+.
+- Admin → Live control: **Start auction** first checks that 70 players have payment received and all have a category.
+  **Add to queue** lines players up; **Bring player** (or key N) takes the next one in the queue, or a random one if it is empty.
+  Only players whose payment is marked received can go under the hammer (enforced in Postgres too).
 - The public page polls one tiny row (`ts_state.version`) every 2 s, so many viewers cost almost nothing.
 
 ### Player-card motion (public `/auction`, its full-screen mode, and Admin → Live control)

@@ -275,3 +275,35 @@ dialog::backdrop { background: rgba(5, 20, 6, 0.72); }
   .table tr { padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ---------- category list, queue, start ---------- */
+.b-list { background: rgba(200, 240, 58, 0.18); color: var(--lime); box-shadow: inset 0 0 0 1.5px rgba(200, 240, 58, 0.55); }
+.b-unlisted { background: var(--amber); color: #3a2a00; }
+.row.flag, .prow.flag { border-color: var(--amber); box-shadow: 0 0 0 2px rgba(255, 212, 121, 0.4); background: linear-gradient(90deg, rgba(255, 212, 121, 0.12), transparent 60%), var(--card); }
+.who-name .badge { vertical-align: 2px; margin-left: 6px; font-size: 0.72rem; padding: 2px 8px; }
+.flags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; } .flags:empty { display: none; }
+.flags .badge { font-size: 0.72rem; padding: 2px 8px; }
+.hint.warn { color: var(--amber); }
+.qtag { display: inline-flex; align-items: center; min-height: 34px; padding: 0 10px; border-radius: 10px; background: rgba(200, 240, 58, 0.16); color: var(--lime); font: 700 0.95rem/1 var(--f-display); letter-spacing: 0.04em; text-transform: uppercase; }
+.bring { display: grid; gap: 8px; }
+.bring .btn.big { width: 100%; }
+.qlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 260px; overflow: auto; }
+.qlist li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 12px; background: rgba(200, 240, 58, 0.08); border: 1.5px solid rgba(200, 240, 58, 0.3); }
+.qlist .qn { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--lime); color: var(--lime-ink); font: 800 1rem/1 var(--f-display); }
+.qlist b { display: block; font: 700 1.05rem/1.1 var(--f-display); text-transform: uppercase; overflow-wrap: anywhere; }
+.qlist small { color: var(--muted); font-size: 0.82rem; }
+.pick .btns { flex-wrap: nowrap; }
+.roster { margin-bottom: 14px; display: grid; gap: 12px; }
+.roster .card-h { margin-bottom: 0; }
+.rgroup { border-radius: 14px; padding: 10px 14px; background: rgba(255, 255, 250, 0.05); border: 1.5px solid var(--line-soft); }
+.rgroup.bad { border-color: rgba(255, 143, 122, 0.7); background: rgba(216, 65, 47, 0.12); }
+.rgroup.warn { border-color: rgba(255, 212, 121, 0.7); background: rgba(255, 212, 121, 0.08); }
+.rgroup summary { cursor: pointer; font: 700 1.1rem/1.2 var(--f-display); letter-spacing: 0.02em; text-transform: uppercase; display: flex; align-items: center; gap: 10px; }
+.rgroup .rcount { display: inline-grid; place-items: center; min-width: 30px; height: 26px; padding: 0 8px; border-radius: 999px; background: rgba(255, 255, 250, 0.16); font-size: 0.95rem; }
+.rgroup.bad .rcount { background: var(--danger-solid); color: #fff; } .rgroup.warn .rcount { background: var(--amber); color: #3a2a00; }
+.rgroup ul { list-style: none; margin: 8px 0 2px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px 16px; }
+.rgroup li { min-width: 0; overflow-wrap: anywhere; }
+.rgroup li small { color: var(--muted); }
+.rgroup li .badge { font-size: 0.72rem; padding: 2px 8px; }
+.probs { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.acts .badge, .card-h .badge { display: inline-flex; align-items: center; min-height: 34px; }

@@ -6,6 +6,10 @@ const { makeReference, send } = require("../_lib/http");
 const PAYMENT = ["awaiting_review", "verified", "due"];
 const COLS = "id, reference, status, payment_status, name, age, phone, role, jersey_size, tournaments_played, crichero_url, photo_path, payment_path, organiser_notes, source, created_at, completed_at, reviewed_at, updated_at";
 
+// Registrations feed the auction (payment state, names), so tell auction screens to refresh: touching ts_settings
+// bumps ts_state.version through its trigger. Harmless if the auction tables are not set up yet.
+async function bumpAuction(sb) { try { await sb.from("ts_settings").update({ updated_at: new Date().toISOString() }).eq("id", 1); } catch (_) {} }
+
 async function dropFiles(sb, row) {
   const paths = [row.photo_path, row.payment_path].filter(Boolean);
   if (paths.length) await sb.storage.from(BUCKET).remove(paths);
@@ -32,7 +36,7 @@ module.exports = adminRoute(["GET", "POST", "PATCH", "DELETE"], async (req, res,
         ...v.data, reference: makeReference(), consent: true, status: "received", source: "admin",
         payment_status, organiser_notes: notes, completed_at: new Date().toISOString(),
       }).select(COLS).single();
-      if (!error) return send(res, 200, { ok: true, row: data });
+      if (!error) { await bumpAuction(sb); return send(res, 200, { ok: true, row: data }); }
       if (!(error.code === "23505" && /reference/.test(error.message))) throw error;
     }
     throw new Error("could not allocate a reference");
@@ -47,6 +51,7 @@ module.exports = adminRoute(["GET", "POST", "PATCH", "DELETE"], async (req, res,
     await dropFiles(sb, row);
     const { error } = await sb.from("registrations").delete().eq("id", id);
     if (error) throw error;
+    await bumpAuction(sb);
     return send(res, 200, { ok: true });
   }
 
@@ -66,5 +71,6 @@ module.exports = adminRoute(["GET", "POST", "PATCH", "DELETE"], async (req, res,
   const { data, error } = await sb.from("registrations").update(patch).eq("id", id).select(COLS).maybeSingle();
   if (error) throw error;
   if (!data) return send(res, 404, { ok: false, message: "Entry not found." });
+  await bumpAuction(sb);
   send(res, 200, { ok: true, row: data });
 });
