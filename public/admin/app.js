@@ -47,13 +47,13 @@
   }
 
   // ---------- views: login / app ----------
-  function showLogin() { stopTimer(); $("#app").hidden = true; $("#login-view").hidden = false; A = R = null; setTimeout(() => $("#u").focus(), 0); }
+  function showLogin() { stopTimer(); $("#app").hidden = true; $("#login-view").hidden = false; A = R = null; setTimeout(() => $("#p").focus(), 0); }
   function showApp(name) { $("#login-view").hidden = true; $("#app").hidden = false; $("#who").textContent = name; }
   $("#login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const b = $("#login-btn"), err = $("#login-err"); err.hidden = true; b.disabled = true;
     try {
-      const { data } = await post("/api/admin/login", { username: $("#u").value, password: $("#p").value });
+      const { data } = await post("/api/admin/login", { password: $("#p").value });
       if (!data.ok) { err.textContent = data.message; err.hidden = false; return; }
       $("#p").value = ""; await boot();
     } catch (_) {} finally { b.disabled = false; }

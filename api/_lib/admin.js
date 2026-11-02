@@ -37,21 +37,25 @@ function setSessionCookie(res, token, maxAge) {
   res.setHeader("Set-Cookie", `${COOKIE}=${encodeURIComponent(token)}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAge}`);
 }
 
-async function login(username, password) {
+// Password-only sign-in. The password identifies the admin; wrong guesses count against everyone,
+// so 5 misses lock sign-in for 15 minutes.
+async function login(password) {
   const sb = db();
-  const key = normUser(username);
-  const { data: u } = await sb.from("admin_users").select("*").eq("username_key", key).maybeSingle();
-  if (u?.locked_until && new Date(u.locked_until) > new Date()) {
+  const { data: users } = await sb.from("admin_users").select("*");
+  const list = users || [];
+  if (list.some((u) => u.locked_until && new Date(u.locked_until) > new Date())) {
     verifyPassword(password, DUMMY);
     return { locked: true };
   }
-  const ok = verifyPassword(password, u ? u.password_hash : DUMMY) && !!u;
-  if (!ok) {
-    if (u) {
-      const fails = u.failed_count + 1;
+  let u = null;
+  for (const x of list) if (verifyPassword(password, x.password_hash) && !u) u = x;
+  if (!u) {
+    verifyPassword(password, DUMMY);
+    const fails = Math.max(0, ...list.map((x) => x.failed_count)) + 1;
+    if (list.length) {
       await sb.from("admin_users").update(fails >= MAX_FAILS
         ? { failed_count: 0, locked_until: new Date(Date.now() + LOCK_MINUTES * 60000).toISOString() }
-        : { failed_count: fails }).eq("id", u.id);
+        : { failed_count: fails }).in("id", list.map((x) => x.id));
     }
     return { ok: false };
   }
