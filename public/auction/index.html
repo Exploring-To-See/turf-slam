@@ -8,21 +8,24 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,700;1,800&family=Barlow:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/shared/ts-stage.css">
 <link rel="stylesheet" href="/auction/auction.css">
 </head>
-<body class="lock">
+<body class="lock pre">
 
 <div id="intro" role="presentation">
   <div class="half top"></div><div class="half bot"></div>
+  <i class="beam b1"></i><i class="beam b2"></i><i class="beam b3"></i><i class="beam b4"></i>
   <button class="intro-skip" id="intro-skip" type="button">Skip</button>
   <div class="intro-core">
-    <img class="intro-logo" src="/assets/turf-slam-logo-1200-noball.webp" width="1200" height="452" alt="The Turf Slam">
+    <div class="intro-logo-wrap"><img src="/assets/turf-slam-logo-1200-noball.webp" width="1200" height="452" alt="The Turf Slam"></div>
     <p class="intro-sub">Player Auction</p>
     <div class="intro-pitch" aria-hidden="true">
       <i class="crease c1"></i><i class="crease c2"></i><i class="rc l"></i><i class="rc r"></i>
       <div class="stumps"><i></i><i></i><i></i><b class="bail b1"></b><b class="bail b2"></b></div>
-      <span class="intro-ball"></span>
+      <span class="intro-ball"></span><span class="intro-hit"></span>
     </div>
+    <div class="intro-bar" aria-hidden="true"><i></i></div>
   </div>
 </div>
 
@@ -32,14 +35,18 @@
       <a class="brand" href="/auction" aria-label="The Turf Slam auction"><img src="/assets/turf-slam-logo-1200-noball.webp" width="1200" height="452" alt="The Turf Slam"></a>
       <div class="bar-title"><span class="kicker">Player auction</span><b id="ev-title">The Turf Slam</b></div>
       <div class="live off" id="live" role="status"><i class="dot"></i><span id="live-t">Connecting</span></div>
+      <button class="fs-btn" id="fs-open" type="button" aria-label="Show the player card full screen">Full screen</button>
     </div>
   </header>
 
   <main class="wrap">
-    <section class="stage" id="stage" aria-live="polite" aria-label="Player on the block"></section>
+    <div class="ticker still" id="ticker" aria-label="Latest sales"><span class="ticker-k">Latest</span><div class="ticker-view"><div class="ticker-track" id="ticker-track"><span>Sales will scroll here as they happen</span></div></div></div>
+
+    <section id="stage" aria-live="polite" aria-label="Player on the block"></section>
 
     <div>
       <nav class="tabs" role="tablist" aria-label="Auction views" id="tabs">
+        <span class="slider" id="slider" aria-hidden="true"></span>
         <button role="tab" id="t-teams" aria-controls="p-teams" aria-selected="true" data-tab="teams">Teams <small id="n-teams"></small></button>
         <button role="tab" id="t-players" aria-controls="p-players" aria-selected="false" data-tab="players" tabindex="-1">Players <small id="n-players"></small></button>
         <button role="tab" id="t-results" aria-controls="p-results" aria-selected="false" data-tab="results" tabindex="-1">Results <small id="n-results"></small></button>
@@ -83,6 +90,7 @@
   <footer class="foot">Tech Partner: Kendu Entertainment</footer>
 </div>
 
+<script src="/shared/ts-stage.js"></script>
 <script src="/auction/auction.js"></script>
 </body>
 </html>

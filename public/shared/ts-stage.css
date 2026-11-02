@@ -1,0 +1,201 @@
+/* Player-card stage shared by the public auction page, the public full-screen mode and the admin full-screen view.
+   Needs the usual tokens on :root (--lime, --cream, --willow, --night, --strip, --card, --line, --muted, --dim, --chalk,
+   --danger, --amber, --f-display, --f-body, --ease). Everything is scoped under .ts-stage / .ts-* so it can't leak. */
+.ts-stage { position: relative; min-width: 0; }
+.ts-wrap { position: relative; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.ts-lot, .ts-board, .ts-idle { position: relative; min-width: 0; border-radius: 20px; }
+.ts-lot { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 20px; padding: 18px; overflow: hidden;
+  background: url("/assets/turf-strip.webp") center top / 100% auto, var(--strip); box-shadow: 0 0 0 2px rgba(255, 255, 250, 0.10), 0 24px 50px -24px rgba(0, 0, 0, 0.7); }
+.ts-lot::before, .ts-lot::after { content: ""; position: absolute; left: 6%; right: 6%; height: 3px; background: var(--chalk); opacity: 0.85; }
+.ts-lot::before { top: 9px; } .ts-lot::after { bottom: 9px; }
+.ts-sweep { position: absolute; z-index: 3; top: -20%; bottom: -20%; left: -40%; width: 30%; pointer-events: none; opacity: 0;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 240, 0.32), transparent); transform: skewX(-18deg); }
+.ts-photo { position: relative; align-self: start; aspect-ratio: 4 / 5; border-radius: 14px; overflow: hidden; background: var(--night); border: 3px solid var(--cream); }
+.ts-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ts-serial { position: absolute; top: 8px; left: 8px; z-index: 2; padding: 3px 10px; border-radius: 8px; background: var(--cream); color: var(--ink); font: 800 1.05rem/1.2 var(--f-display); letter-spacing: 0.04em; }
+.ts-initials { position: absolute; inset: 0; display: grid; place-items: center; font: 800 italic clamp(3rem, 9vw, 5.5rem)/1 var(--f-display); color: var(--cream);
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 250, 0.05) 0 22px, transparent 22px 44px), #1b3d1d; }
+.ts-info { min-width: 0; align-self: center; display: grid; gap: 10px; padding: 8px 2px; }
+.ts-kicker { font: 700 0.8rem/1 var(--f-display); letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
+.ts-name { font: 800 italic clamp(1.9rem, 4.2vw, 3rem)/0.98 var(--f-display); text-transform: uppercase; overflow-wrap: anywhere; text-shadow: 0 2px 0 rgba(0, 30, 0, 0.35); text-wrap: balance; margin: 0; }
+.ts-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.ts-tag { display: inline-flex; align-items: center; min-height: 30px; padding: 0 12px; border-radius: 999px; background: rgba(8, 34, 10, 0.55); border: 1.5px solid var(--line); font-weight: 600; font-size: 0.9rem; }
+.ts-tag.cat { background: var(--lime); color: var(--lime-ink); border-color: transparent; font-weight: 700; }
+.ts-played { font-size: 0.95rem; color: var(--muted); overflow-wrap: anywhere; margin: 0; }
+.ts-played b { display: block; font: 700 0.78rem/1 var(--f-display); letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); margin-bottom: 3px; }
+.ts-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.ts-facts div { padding: 8px 12px; border-radius: 12px; background: rgba(8, 34, 10, 0.5); border: 1.5px solid rgba(255, 255, 250, 0.12); }
+.ts-facts dt { font: 700 0.75rem/1 var(--f-display); letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); }
+.ts-facts dd { margin: 4px 0 0; font: 700 1.2rem/1.1 var(--f-display); font-variant-numeric: tabular-nums; }
+
+.ts-board { display: grid; gap: 12px; align-content: start; padding: 18px; overflow: hidden; background: var(--card); border: 1.5px solid var(--line); box-shadow: 0 24px 50px -28px rgba(0, 0, 0, 0.8); }
+.ts-price-wrap { position: relative; padding: 12px 14px 10px; border-radius: 14px; background: var(--night); border: 2px solid rgba(255, 255, 250, 0.35); box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.4); }
+.ts-price { position: relative; z-index: 1; font: 800 clamp(2.5rem, 7.4vw, 4.6rem)/1 var(--f-display); color: var(--willow); letter-spacing: 0.01em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ts-leader { position: relative; display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 8px 12px; border-radius: 12px; background: rgba(255, 255, 250, 0.08); border: 1.5px solid rgba(255, 255, 250, 0.12); min-width: 0; }
+.ts-leader b { font: 700 1.3rem/1.1 var(--f-display); text-transform: uppercase; overflow-wrap: anywhere; }
+.ts-leader small { margin-left: auto; padding-left: 8px; color: var(--dim); font-weight: 600; white-space: nowrap; }
+.ts-swatch { flex: 0 0 auto; width: 14px; height: 14px; border-radius: 50%; background: var(--c, var(--lime)); box-shadow: 0 0 0 2px rgba(255, 255, 250, 0.7); }
+.ts-next { margin: 0; color: var(--muted); font-size: 0.95rem; }
+.ts-next b { color: var(--text); font-variant-numeric: tabular-nums; }
+.ts-ladder { display: grid; gap: 4px; max-height: 232px; overflow: auto; padding: 0 2px 0 0; margin: 0; list-style: none; }
+.ts-ladder li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 10px; font-size: 0.95rem; background: rgba(255, 255, 250, 0.05); }
+.ts-ladder li:first-child { background: rgba(200, 240, 58, 0.16); box-shadow: inset 0 0 0 1.5px rgba(200, 240, 58, 0.6); }
+.ts-ladder li span { overflow-wrap: anywhere; font-weight: 600; }
+.ts-ladder li b { font: 700 1.1rem/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.ts-paused-flag { margin: 0; padding: 8px 12px; border-radius: 12px; background: rgba(255, 212, 121, 0.16); border: 1.5px solid rgba(255, 212, 121, 0.7); color: var(--amber); font-weight: 700; text-align: center; letter-spacing: 0.04em; animation: tsBlink 1.6s ease-in-out infinite; }
+@keyframes tsBlink { 50% { opacity: 0.55; } }
+
+.ts-idle { display: grid; place-items: center; text-align: center; gap: 8px; padding: 36px 18px; min-height: 260px;
+  background: url("/assets/turf-strip.webp") center top / 100% auto, var(--strip); box-shadow: 0 0 0 2px rgba(255, 255, 250, 0.10), 0 24px 50px -24px rgba(0, 0, 0, 0.7); overflow: hidden; }
+.ts-idle h2 { margin: 0; font: 800 italic clamp(1.8rem, 5vw, 3rem)/1 var(--f-display); text-transform: uppercase; text-wrap: balance; }
+.ts-idle p { margin: 0; color: var(--muted); max-width: 46ch; }
+.ts-idle .last { margin-top: 10px; padding: 10px 16px; border-radius: 14px; background: rgba(8, 34, 10, 0.55); border: 1.5px solid var(--line); max-width: 100%; overflow-wrap: anywhere; }
+.ts-idle .last b { color: var(--lime); }
+.ts-idle .ts-orbit { position: relative; width: 74px; height: 74px; margin: 0 auto 6px; }
+.ts-idle .ts-orbit i { position: absolute; inset: 0; border-radius: 50%; border: 3px dashed var(--chalk); opacity: 0.8; animation: tsSpin 9s linear infinite; }
+.ts-idle .ts-orbit b { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px; border-radius: 50%; background: radial-gradient(circle at 34% 30%, #e8483c, #a3170f 70%); box-shadow: 0 5px 8px rgba(0, 0, 0, 0.35); animation: tsBob 1.8s ease-in-out infinite; }
+@keyframes tsSpin { to { transform: rotate(360deg); } }
+@keyframes tsBob { 50% { transform: translateY(-9px); } }
+
+/* ---------- motion ---------- */
+.ts-fx { position: absolute; inset: 0; z-index: 8; pointer-events: none; overflow: hidden; border-radius: 20px; }
+
+/* a new player takes the block: the card drops in, the photo is revealed, a light sweeps across, a ball rolls to the price */
+.ts-stage.is-enter .ts-lot { animation: tsLotIn 760ms var(--ease) var(--d, 0ms) both; }
+.ts-stage.is-enter .ts-board { animation: tsBoardIn 700ms var(--ease) calc(var(--d, 0ms) + 140ms) both; }
+.ts-stage.is-enter .ts-photo img, .ts-stage.is-enter .ts-initials { animation: tsReveal 850ms var(--ease) calc(var(--d, 0ms) + 260ms) both; }
+.ts-stage.is-enter .ts-serial { animation: tsPop 500ms var(--ease) calc(var(--d, 0ms) + 600ms) both; }
+.ts-stage.is-enter .ts-name { animation: tsNameIn 650ms var(--ease) calc(var(--d, 0ms) + 330ms) both; }
+.ts-stage.is-enter .ts-tags > *, .ts-stage.is-enter .ts-facts > *, .ts-stage.is-enter .ts-played { animation: tsPop 520ms var(--ease) both; animation-delay: calc(var(--d, 0ms) + 520ms + var(--i, 0) * 70ms); }
+.ts-stage.is-enter .ts-sweep { animation: tsSweep 1100ms ease calc(var(--d, 0ms) + 420ms) both; }
+.ts-stage.is-enter .ts-price { animation: tsPriceIn 600ms var(--ease) calc(var(--d, 0ms) + 900ms) both; }
+.ts-ball { position: absolute; z-index: 2; left: 0; top: 50%; width: 22px; height: 22px; margin-top: -11px; border-radius: 50%; opacity: 0; pointer-events: none;
+  background: radial-gradient(circle at 34% 30%, #e8483c, #a3170f 70%); box-shadow: 0 5px 8px rgba(0, 0, 0, 0.4); }
+.ts-ball::after { content: ""; position: absolute; inset: 2px 7px; border-left: 1.5px dashed rgba(255, 245, 225, 0.85); border-right: 1.5px dashed rgba(255, 245, 225, 0.85); border-radius: 50%; }
+.ts-stage.is-enter .ts-ball { animation: tsRoll 900ms cubic-bezier(0.4, 0, 0.7, 1) calc(var(--d, 0ms) + 420ms) both; }
+@keyframes tsLotIn { 0% { opacity: 0; transform: translateY(-48px) rotate(-2.5deg) scale(0.96); } 62% { opacity: 1; transform: translateY(7px) rotate(0.5deg); } 100% { opacity: 1; transform: none; } }
+@keyframes tsBoardIn { from { opacity: 0; transform: translateX(48px); } to { opacity: 1; transform: none; } }
+@keyframes tsReveal { from { clip-path: inset(0 0 100% 0); transform: scale(1.1); } to { clip-path: inset(0); transform: none; } }
+@keyframes tsNameIn { from { opacity: 0; letter-spacing: 0.18em; transform: translateY(14px); } to { opacity: 1; letter-spacing: normal; transform: none; } }
+@keyframes tsPop { from { opacity: 0; transform: scale(0.7) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes tsSweep { 0% { opacity: 0; left: -40%; } 15% { opacity: 1; } 100% { opacity: 0; left: 120%; } }
+@keyframes tsPriceIn { 0% { opacity: 0; transform: scale(1.35); filter: blur(5px); } 100% { opacity: 1; transform: none; filter: none; } }
+@keyframes tsRoll { 0% { opacity: 1; left: -4%; transform: rotate(0); } 85% { opacity: 1; left: 88%; transform: rotate(780deg); } 100% { opacity: 0; left: 96%; transform: rotate(900deg); } }
+
+/* a bid: the price jumps and flashes, a ring spreads from it, the step floats up, the leader row lights in the team colour */
+.ts-price.bump { animation: tsBump 560ms var(--ease); }
+@keyframes tsBump { 0% { transform: scale(1.14); color: var(--lime); text-shadow: 0 0 22px rgba(200, 240, 58, 0.8); } 100% { transform: none; } }
+.ts-price.shake { animation: tsShakeX 420ms ease; color: var(--danger); }
+@keyframes tsShakeX { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
+.ts-ripple { position: absolute; z-index: 0; left: 28px; top: 50%; width: 40px; height: 40px; margin: -20px; border-radius: 50%; border: 3px solid var(--lime); opacity: 0; pointer-events: none; animation: tsRipple 900ms ease-out; }
+@keyframes tsRipple { 0% { opacity: 0.9; transform: scale(0.4); } 100% { opacity: 0; transform: scale(7); } }
+.ts-delta { position: absolute; z-index: 4; right: 12px; top: 6px; padding: 2px 10px; border-radius: 999px; background: var(--lime); color: var(--lime-ink); font: 800 1.05rem/1.3 var(--f-display); letter-spacing: 0.02em; pointer-events: none; animation: tsFloat 1200ms var(--ease) forwards; }
+.ts-delta.neg { background: var(--danger); color: #3a0c05; }
+@keyframes tsFloat { 0% { opacity: 0; transform: translateY(14px) scale(0.8); } 20% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-34px); } }
+.ts-leader.flash { animation: tsFlash 1000ms ease; }
+@keyframes tsFlash { 0% { background: color-mix(in srgb, var(--c, #c8f03a) 55%, transparent); box-shadow: 0 0 0 3px var(--c, #c8f03a); } 100% { background: rgba(255, 255, 250, 0.08); box-shadow: 0 0 0 0 transparent; } }
+.ts-ladder li.new { animation: tsRowIn 480ms var(--ease); }
+@keyframes tsRowIn { from { opacity: 0; transform: translateX(-24px) scale(0.97); } to { opacity: 1; transform: none; } }
+
+/* the previous card, held on screen for the sale / unsold call, then sent away */
+.ts-ghost { position: absolute; left: 0; top: 0; width: 100%; z-index: 6; }
+.ts-ghost .ts-wrap { transform-origin: 50% 60%; }
+.ts-ghost.sold .ts-wrap { animation: tsHammer 520ms var(--ease); }
+.ts-ghost.unsold .ts-wrap { animation: tsDim 800ms ease forwards; }
+.ts-ghost.sold.out .ts-wrap { animation: tsAwaySold 620ms cubic-bezier(0.5, 0, 0.9, 0.4) forwards; }
+.ts-ghost.unsold.out .ts-wrap { animation: tsAwayUnsold 640ms cubic-bezier(0.5, 0, 0.9, 0.4) forwards; }
+.ts-ghost.swap .ts-wrap { animation: tsAwaySwap 460ms cubic-bezier(0.5, 0, 0.9, 0.4) forwards; }
+@keyframes tsHammer { 0% { transform: scale(1.03); } 30% { transform: translateY(8px) scale(0.985); } 55% { transform: translateY(-3px); } 100% { transform: none; } }
+@keyframes tsDim { to { filter: grayscale(1) brightness(0.72); transform: translateY(6px) rotate(0.6deg); } }
+@keyframes tsAwaySold { to { opacity: 0; transform: translateY(-40px) scale(1.06); } }
+@keyframes tsAwayUnsold { from { filter: grayscale(1) brightness(0.72); } to { filter: grayscale(1) brightness(0.5); opacity: 0; transform: translateY(70px) rotate(4deg) scale(0.95); } }
+@keyframes tsAwaySwap { to { opacity: 0; transform: translateX(-70px) rotate(-4deg) scale(0.95); } }
+.ts-stage.hold > .ts-wrap, .ts-stage.hold > .ts-idle { visibility: hidden; }
+
+.ts-stamp { position: absolute; z-index: 9; left: 50%; top: 50%; width: min(86%, 520px); padding: 14px 18px 12px; text-align: center; pointer-events: none; transform: translate(-50%, -50%) rotate(-7deg);
+  background: rgba(10, 30, 12, 0.93); border: 5px solid var(--lime); border-radius: 16px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6); animation: tsSlam 540ms cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+.ts-stamp.unsold { border-color: var(--danger); animation: tsSlam 540ms cubic-bezier(0.2, 1.3, 0.4, 1) both, tsWobble 600ms ease 560ms; }
+.ts-stamp .big { display: block; font: 800 italic clamp(2.8rem, 9vw, 5.2rem)/0.95 var(--f-display); text-transform: uppercase; color: var(--lime); letter-spacing: 0.02em; }
+.ts-stamp.unsold .big { color: var(--danger); }
+.ts-stamp .who { display: block; margin-top: 6px; font: 700 clamp(1.1rem, 3.2vw, 1.6rem)/1.15 var(--f-display); text-transform: uppercase; overflow-wrap: anywhere; }
+.ts-stamp .amt { display: block; font: 800 clamp(1.6rem, 5vw, 2.5rem)/1.1 var(--f-display); color: var(--willow); font-variant-numeric: tabular-nums; }
+.ts-stamp.is-mini { width: min(88%, 300px); padding: 8px 12px 8px; border-width: 4px; }
+.ts-stamp.is-mini .big { font-size: clamp(2rem, 6vw, 2.8rem); } .ts-stamp.is-mini .who { font-size: 1.05rem; } .ts-stamp.is-mini .amt { font-size: 1.5rem; }
+.ts-stamp.static { animation: none; }
+.ts-stamp.leave { animation: tsStampOut 420ms ease forwards; }
+@keyframes tsSlam { 0% { opacity: 0; transform: translate(-50%, -50%) rotate(-7deg) scale(2.4); } 100% { opacity: 1; transform: translate(-50%, -50%) rotate(-7deg) scale(1); } }
+@keyframes tsWobble { 25% { transform: translate(-50%, -50%) rotate(-10deg); } 75% { transform: translate(-50%, -50%) rotate(-4deg); } }
+@keyframes tsStampOut { to { opacity: 0; transform: translate(-50%, -50%) rotate(-7deg) scale(0.9); } }
+
+.ts-confetti { position: absolute; left: 50%; top: 46%; width: var(--w, 9px); height: calc(var(--w, 9px) * 1.7); background: var(--bg, #c8f03a); border-radius: 2px; opacity: 0; animation: tsConfetti var(--t, 1500ms) cubic-bezier(0.15, 0.7, 0.3, 1) forwards; }
+@keyframes tsConfetti { 0% { opacity: 1; transform: translate(0, 0) rotate(0); } 35% { opacity: 1; transform: translate(calc(var(--dx) * 0.6), var(--up)) rotate(calc(var(--r) * 0.5)); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(var(--r)); } }
+
+/* small cards (admin live control) reuse the same moves */
+.ts-mini-enter { animation: tsLotIn 640ms var(--ease) both; }
+.ts-mini-enter .ts-mini-photo { animation: tsReveal 700ms var(--ease) 160ms both; }
+.ts-mini-enter .ts-sweep { animation: tsSweep 1000ms ease 260ms both; }
+.ts-mini-hammer { animation: tsHammer 520ms var(--ease); }
+
+/* ---------- full-screen presentation ---------- */
+.ts-present { position: fixed; inset: 0; z-index: 90; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; color: var(--text);
+  background: radial-gradient(ellipse at 50% -10%, rgba(255, 255, 240, 0.16), transparent 55%), url("/assets/turf-outfield.webp") center top / 1024px auto repeat, var(--outfield); overflow: hidden; }
+.ts-present[hidden] { display: none; }
+.ts-p-head { display: flex; align-items: center; gap: 14px; padding: 8px max(18px, env(safe-area-inset-left)); min-height: 62px; background: url("/assets/turf-strip.webp") center top / 100% auto, var(--strip); border-bottom: 3px solid var(--chalk); box-shadow: 0 6px 14px rgba(0, 0, 0, 0.26); }
+.ts-p-head img { height: 46px; width: auto; display: block; }
+.ts-p-title { flex: 1; min-width: 0; line-height: 1.1; }
+.ts-p-title b { display: block; margin-top: 4px; font: 800 italic 1.4rem/1 var(--f-display); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-p-btn { min-height: 44px; padding: 0 18px; border-radius: 999px; cursor: pointer; border: 1.5px solid var(--line); background: rgba(8, 34, 10, 0.55); color: var(--text); font: 700 1.05rem/1 var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; }
+.ts-p-btn:hover { background: rgba(8, 34, 10, 0.85); }
+.ts-p-main { min-height: 0; display: grid; align-items: center; padding: clamp(10px, 2.2vh, 26px) max(18px, env(safe-area-inset-left)); overflow: auto; }
+.ts-p-main .ts-stage { width: 100%; max-width: 1500px; margin: 0 auto; }
+.ts-present .ts-wrap { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 22px; }
+.ts-present .ts-lot { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); padding: 26px; gap: 28px; }
+.ts-present .ts-photo { max-height: 62vh; width: 100%; }
+.ts-present .ts-name { font-size: clamp(2.4rem, 5.4vw, 5rem); }
+.ts-present .ts-tag { min-height: 38px; font-size: 1.1rem; padding: 0 16px; }
+.ts-present .ts-played { font-size: 1.15rem; }
+.ts-present .ts-facts dd { font-size: 1.7rem; } .ts-present .ts-facts dt { font-size: 0.9rem; }
+.ts-present .ts-board { padding: 26px; gap: 16px; }
+.ts-present .ts-price { font-size: clamp(3.4rem, 9.4vw, 8.4rem); }
+.ts-present .ts-leader { min-height: 60px; } .ts-present .ts-leader b { font-size: 1.9rem; } .ts-present .ts-leader small { font-size: 1.05rem; }
+.ts-present .ts-next { font-size: 1.2rem; }
+.ts-present .ts-ladder { max-height: 26vh; } .ts-present .ts-ladder li { font-size: 1.15rem; padding: 8px 12px; } .ts-present .ts-ladder li b { font-size: 1.4rem; }
+.ts-present .ts-idle { min-height: 52vh; } .ts-present .ts-idle h2 { font-size: clamp(2.4rem, 6vw, 5rem); }
+.ts-present .ts-stamp { width: min(80%, 760px); } .ts-present .ts-stamp .big { font-size: clamp(4rem, 12vw, 9rem); } .ts-present .ts-stamp .who { font-size: clamp(1.4rem, 3.4vw, 2.6rem); } .ts-present .ts-stamp .amt { font-size: clamp(2rem, 5vw, 4rem); }
+.ts-p-strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; padding: 10px max(18px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-bottom)); background: rgba(8, 28, 10, 0.78); border-top: 3px solid var(--chalk); }
+.ts-chip { position: relative; min-width: 0; padding: 7px 10px 8px 14px; border-radius: 12px; overflow: hidden; background: rgba(255, 255, 250, 0.07); border: 1.5px solid var(--line); }
+.ts-chip::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--c, var(--lime)); }
+.ts-chip b { display: block; font: 700 1rem/1.1 var(--f-display); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-chip span { display: block; font: 800 1.35rem/1.1 var(--f-display); font-variant-numeric: tabular-nums; color: var(--willow); }
+.ts-chip small { color: var(--dim); font-size: 0.78rem; font-weight: 600; }
+.ts-chip.lead { border-color: var(--lime); box-shadow: 0 0 0 2px rgba(200, 240, 58, 0.55); animation: tsGlow 1.6s ease-in-out infinite; }
+@keyframes tsGlow { 50% { box-shadow: 0 0 0 5px rgba(200, 240, 58, 0.25); } }
+.ts-p-hint { position: absolute; right: 18px; bottom: 96px; padding: 4px 12px; border-radius: 999px; background: rgba(8, 28, 10, 0.7); color: var(--muted); font-size: 0.82rem; opacity: 0; transition: opacity 400ms; pointer-events: none; }
+.ts-present:hover .ts-p-hint { opacity: 1; }
+
+@media (max-width: 900px) {
+  .ts-wrap, .ts-present .ts-wrap { grid-template-columns: minmax(0, 1fr); }
+  .ts-present .ts-board { order: -1; }
+  .ts-p-strip { display: flex; overflow-x: auto; gap: 8px; scrollbar-width: none; }
+  .ts-p-strip::-webkit-scrollbar { display: none; }
+  .ts-chip { flex: 0 0 142px; }
+  .ts-present .ts-photo { max-height: 40vh; }
+  .ts-present .ts-lot { padding: 18px; gap: 16px; }
+}
+@media (max-width: 600px) {
+  .ts-lot { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 12px; padding: 16px 12px 18px; }
+  .ts-name { font-size: clamp(1.6rem, 8vw, 2.2rem); }
+  .ts-facts { grid-template-columns: minmax(0, 1fr); }
+  .ts-tag { min-height: 28px; padding: 0 10px; font-size: 0.85rem; }
+  .ts-board { padding: 14px; }
+  .ts-p-title { display: none; }
+  .ts-present .ts-lot { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
+  .ts-present .ts-name { font-size: clamp(1.7rem, 8vw, 2.4rem); }
+  .ts-present .ts-price { font-size: clamp(2.6rem, 14vw, 4rem); }
+  .ts-present .ts-leader b { font-size: 1.3rem; }
+}
+@media (max-width: 380px) { .ts-lot { grid-template-columns: minmax(0, 1fr); } .ts-photo { max-width: 200px; } }
+@media (prefers-reduced-motion: reduce) {
+  .ts-stage *, .ts-mini-enter, .ts-mini-enter *, .ts-ghost *, .ts-chip, .ts-ripple, .ts-confetti, .ts-ball { animation: none !important; }
+  .ts-stamp { animation: none !important; } .ts-confetti, .ts-ball, .ts-ripple { display: none; }
+}

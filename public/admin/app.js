@@ -22,6 +22,8 @@
   let seenRegs = null, freshRegs = new Set();
   const ui = { regFilter: "all", regQ: "", pf: "all", pc: "all", pq: "", pickCat: "any", pickQ: "" };
   const drafts = {};       // unsaved field values, survive re-renders
+  let pendingTr = [], fsPres = null;   // animation moves waiting for the next render; the full-screen card
+  function setA(next) { const tr = window.TSStage.detect(A, next); pendingTr = pendingTr.concat(tr); A = next; if (fsPres) fsPres.update(A); }
 
   // ---------- plumbing ----------
   async function api(path, opts = {}) {
@@ -42,12 +44,12 @@
     try {
       const { data } = await post("/api/admin/auction", { action, ...body });
       if (!data.ok) { toast(data.message || "That didn't work.", true); return false; }
-      A = data; render(); if (okMsg) toast(okMsg); return true;
+      setA(data); render(); if (okMsg) toast(okMsg); return true;
     } catch (e) { if (e.message !== "signed-out") toast("Couldn't reach the server.", true); return false; }
   }
 
   // ---------- views: login / app ----------
-  function showLogin() { stopTimer(); $("#app").hidden = true; $("#login-view").hidden = false; A = R = null; setTimeout(() => $("#p").focus(), 0); }
+  function showLogin() { stopTimer(); if (fsPres) fsPres.close(); $("#app").hidden = true; $("#login-view").hidden = false; A = R = null; setTimeout(() => $("#p").focus(), 0); }
   function showApp(name) { $("#login-view").hidden = true; $("#app").hidden = false; $("#who").textContent = name; }
   $("#login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -72,7 +74,7 @@
         wantRegs ? api("/api/admin/registrations") : Promise.resolve(null),
       ]);
       let changed = false;
-      if (a.data.ok && a.data.changed) { A = a.data; changed = true; showApp(a.data.admin || $("#who").textContent); }
+      if (a.data.ok && a.data.changed) { setA(a.data); changed = true; showApp(a.data.admin || $("#who").textContent); }
       if (r && r.data.ok) {
         const sig = (rows) => rows.map((x) => x.id + x.payment_status + x.updated_at).join();
         if (!R || sig(R) !== sig(r.data.rows)) {
@@ -95,7 +97,7 @@
     stopTimer();
     const [a, r] = await Promise.all([api("/api/admin/auction"), api("/api/admin/registrations")]).catch(() => [null, null]);
     if (!a) return showLogin();
-    if (a.data.ok) { A = a.data; showApp(a.data.admin); }
+    if (a.data.ok) { setA(a.data); showApp(a.data.admin); }
     if (r && r.data.ok) { R = r.data.rows; seenRegs = new Set(R.map((x) => x.id)); }
     if ($("#app").hidden) return showLogin();
     setRoute(); render(); timer = setTimeout(tick, 1500);
@@ -114,6 +116,8 @@
     $("#nav").querySelectorAll("a").forEach((a) => a.setAttribute("aria-current", a.dataset.r === route ? "page" : "false"));
     const view = { overview, registrations, live, players, teams, rules }[route];
     $("#view").innerHTML = view();
+    if (route === "live") window.TSStage.playMini($("#blockcard"), pendingTr, A);
+    pendingTr = [];
     if (fk) { const n = $(`[data-keep="${fk}"]`); if (n) { n.focus(); if (sel) try { n.setSelectionRange(...sel); } catch (_) {} } }
     scrollTo(0, y);
     pills();
@@ -222,12 +226,12 @@
     let blockHtml;
     if (p) {
       blockHtml = `
-        <div class="card-h"><h2>On the block</h2><span class="badge b-${esc(st.status)}">${st.status === "paused" ? "Paused" : "Bidding live"}</span></div>
-        <div class="block-top"><div class="block-photo"><span aria-hidden="true">${esc(initials(p.name))}</span>${p.has_photo ? `<img src="/api/auction/state?photo=${esc(p.id)}" alt="" onerror="this.remove()">` : ""}</div>
+        <div class="card-h"><h2>On the block</h2><span class="btns"><span class="badge b-${esc(st.status)}">${st.status === "paused" ? "Paused" : "Bidding live"}</span><button class="mini" type="button" data-act="fs">Full screen</button></span></div>
+        <div class="block-top"><div class="block-photo ts-mini-photo"><span aria-hidden="true">${esc(initials(p.name))}</span>${p.has_photo ? `<img src="/api/auction/state?photo=${esc(p.id)}" alt="" onerror="this.remove()">` : ""}</div>
           <div><div class="block-name">${esc(p.name)}</div>
             <div class="tags"><span class="tag cat">${esc(c.label)}</span>${p.role ? `<span class="tag">${esc(p.role)}</span>` : ""}${p.age ? `<span class="tag">Age ${esc(p.age)}</span>` : ""}<span class="tag">Base ${INR(c.base_price)}</span><span class="tag">Step ${INR(c.increment)}</span></div></div></div>
-        <div class="price-box"><span class="p num">${INR(st.price)}</span>
-          <span class="l">${lead ? `<i class="swatch" style="--c:${esc(lead.color)}"></i>${esc(lead.name)} <small>leading</small>` : `<small>No bids yet. Opening price.</small>`}</span></div>
+        <div class="price-box" data-ts="pricebox"><span class="p num" data-ts="price">${INR(st.price)}</span>
+          <span class="l" data-ts="leader" ${lead ? `style="--c:${esc(lead.color)}"` : ""}>${lead ? `<i class="swatch" style="--c:${esc(lead.color)}"></i>${esc(lead.name)} <small>leading</small>` : `<small>No bids yet. Opening price.</small>`}</span></div>
         <div class="block-acts">
           <button class="btn big" type="button" data-act="sell" ${lead && open ? "" : "disabled"}>${lead ? `Sold to ${esc(lead.name)} for ${INR(st.price)}` : "Sold (needs a bid)"}</button>
           <div class="pair">
@@ -257,9 +261,9 @@
     const seg = (v, l) => `<button type="button" data-act="pickcat" data-v="${v}" aria-pressed="${ui.pickCat === v}">${l}</button>`;
 
     return head("Live control", `Everything the auctioneer needs on one screen. The public page at <b>/auction</b> follows along within a second or two.`,
-      `<a class="mini" href="/auction" target="_blank" rel="noopener">Open public view</a>`) + `
+      `<button class="mini primary" type="button" data-act="fs">Full screen player card</button><a class="mini" href="/auction" target="_blank" rel="noopener">Open public view</a>`) + `
       <div class="live-grid">
-        <section class="card">${blockHtml}</section>
+        <section class="card block-card" id="blockcard"><i class="ts-sweep"></i><div class="ts-fx"></div>${blockHtml}</section>
         <section class="card"><div class="card-h"><h2>Place a bid</h2></div>
           <div class="teamgrid">${teamBtns}</div>
           <div class="jump"><div><label class="label" for="jteam">Team</label><select class="select sm" id="jteam" data-keep="jteam">${A.teams.map((t) => `<option value="${t.id}" ${String(val("jteam", "")) === String(t.id) ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></div>
@@ -550,6 +554,7 @@
       $("#img-el").src = `/api/admin/image?id=${encodeURIComponent(r.id)}&kind=${kind}&t=${Date.now()}`; $("#img-dlg").showModal();
     },
     // live
+    fs() { if (fsPres) return; fsPres = window.TSStage.openPresent({ title: A.title, hint: "Keys 1 to 9 and 0 still place bids", onClose: () => { fsPres = null; } }); fsPres.update(A); },
     "open-lot": (b) => act("open_lot", { player_id: idOf(b) }, "On the block"),
     random: () => act("random", { category: ui.pickCat === "any" ? undefined : ui.pickCat }, "On the block"),
     pickcat: (b) => { ui.pickCat = b.dataset.v; render(); },

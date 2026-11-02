@@ -1,27 +1,33 @@
 (() => {
   "use strict";
+  const S = window.TSStage;
   const $ = (s, r = document) => r.querySelector(s);
-  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const INR = (n) => "₹" + Number(n).toLocaleString("en-IN");
-  const trim = (x) => String(+x.toFixed(2));
-  const short = (n) => (n >= 1e7 ? `₹${trim(n / 1e7)} Cr` : n >= 1e5 ? `₹${trim(n / 1e5)} L` : INR(n));
-  const initials = (name) => (String(name).trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("") || "?").toUpperCase();
+  const { esc, INR, short, initials } = S;
   const time = (iso) => new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  let snap = null, version = -1, tab = "teams", filter = "all", query = "";
-  let lastEvent = null, stamp = null, lastStageHtml = "", lastPrice = null, lastLot = null, failures = 0;
+  let snap = null, version = -1, filter = "all", query = "", failures = 0, tab = "teams";
+  let pres = null;               // full-screen presenter, when open
+  const seen = { teams: false, players: false, feed: false };
+  const counts = new Map();      // purse numbers, so they roll from the old value to the new one
+  let prevSquads = null, prevFeedIds = null, tickerKey = "";
+  const stage = S.presenter($("#stage"));
+  const tabs = [...document.querySelectorAll("#tabs [data-tab]")];
 
   // ---------- opening ----------
   const intro = $("#intro");
-  function endIntro() { if (!intro.isConnected) return; intro.remove(); document.body.classList.remove("lock"); }
+  function endIntro() {
+    if (intro.isConnected) intro.remove();
+    document.body.classList.remove("lock");
+    requestAnimationFrame(() => { document.body.classList.remove("pre"); document.body.classList.add("ready"); });
+    placeSlider();
+  }
   (function runIntro() {
-    let seen = false;
-    try { seen = sessionStorage.getItem("ts-auction-intro") === "1"; sessionStorage.setItem("ts-auction-intro", "1"); } catch (_) {}
-    if (seen) return endIntro();
+    let seenBefore = false;
+    try { seenBefore = sessionStorage.getItem("ts-auction-intro") === "1"; sessionStorage.setItem("ts-auction-intro", "1"); } catch (_) {}
+    if (seenBefore) return endIntro();
     $("#intro-skip").addEventListener("click", endIntro);
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape") endIntro(); });
-    setTimeout(endIntro, reduce ? 900 : 4150);
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && intro.isConnected) endIntro(); });
+    setTimeout(endIntro, S.reduce ? 900 : 4300);
   })();
 
   // ---------- data ----------
@@ -45,15 +51,15 @@
   }
 
   const team = (id) => snap.teams.find((t) => t.id === id);
-  const player = (id) => snap.players.find((p) => p.id === id);
   const cat = (code) => snap.categories.find((c) => c.code === code);
 
   // ---------- render ----------
   function render() {
     document.title = `${snap.title} · Turf Slam`;
     $("#ev-title").textContent = snap.title;
-    noteStamp();
-    renderStage();
+    stage.update(snap);
+    if (pres) pres.update(snap);
+    renderTicker();
     renderTeams();
     renderPlayers();
     renderFeed();
@@ -61,93 +67,49 @@
     $("#n-teams").textContent = snap.teams.length;
     $("#n-players").textContent = snap.players.length;
     $("#n-results").textContent = snap.events.filter((e) => ["sold", "unsold"].includes(e.kind)).length;
+    placeSlider();
   }
 
-  // A sale or unsold call that arrives while the page is open gets the stamp for a few seconds.
-  function noteStamp() {
-    const newest = snap.events.length ? snap.events[0].id : 0;
-    if (lastEvent === null) { lastEvent = newest; return; }
-    const fresh = snap.events.filter((e) => e.id > lastEvent && (e.kind === "sold" || e.kind === "unsold"));
-    lastEvent = newest;
-    if (fresh.length) {
-      const e = fresh[0];
-      stamp = { kind: e.kind, name: e.player_name, team: e.team_name, amount: e.amount, until: Date.now() + 9000 };
-      setTimeout(() => { if (stamp && Date.now() >= stamp.until) { stamp = null; renderStage(); } }, 9100);
-    }
+  function renderTicker() {
+    const sales = snap.events.filter((e) => e.kind === "sold").slice(0, 10);
+    const key = sales.map((e) => e.id).join();
+    if (key === tickerKey) return; tickerKey = key;
+    const box = $("#ticker"), track = $("#ticker-track");
+    if (!sales.length) { box.classList.add("still"); track.innerHTML = "<span>Sales will scroll here as they happen</span>"; return; }
+    const items = sales.map((e) => `<span><b>${esc(e.player_name)}</b> to ${esc(e.team_name)} <em>${INR(e.amount)}</em></span>`).join("");
+    box.classList.toggle("still", S.reduce);
+    track.style.setProperty("--dur", Math.max(26, sales.length * 7) + "s");
+    track.innerHTML = items + items;
   }
 
-  function avatar(p, eager) {
-    return p.has_photo ? `<img src="/api/auction/state?photo=${esc(p.id)}" alt="" ${eager ? "" : 'loading="lazy" '}decoding="async" onerror="this.remove()">` : "";
-  }
-  const stampHtml = () => (stamp && Date.now() < stamp.until
-    ? `<div class="stamp ${stamp.kind === "unsold" ? "unsold" : ""}" role="status"><span class="big">${stamp.kind === "sold" ? "Sold" : "Unsold"}</span><span class="who">${esc(stamp.name)}${stamp.kind === "sold" ? ` to ${esc(stamp.team)}` : ""}</span>${stamp.kind === "sold" ? `<span class="amt">${INR(stamp.amount)}</span>` : ""}</div>` : "");
-
-  function renderStage() {
-    const st = snap.state, p = st.player_id ? player(st.player_id) : null;
-    let html;
-    if (p && (st.status === "live" || st.status === "paused")) {
-      const c = cat(p.category), lead = st.leading_team_id ? team(st.leading_team_id) : null;
-      const base = c.base_price, step = c.increment;
-      const next = lead ? st.price + step : base;
-      const bids = st.bids.map((b) => { const t = team(b.team_id); return `<li><i class="swatch" style="--c:${esc(t ? t.color : "#c8f03a")}"></i><span>${esc(t ? t.name : "Team")}</span><b class="num">${INR(b.amount)}</b></li>`; }).join("");
-      html = `
-        <article class="lot">
-          <div class="lot-photo"><span class="serial">#${String(p.serial).padStart(2, "0")}</span><div class="initials" aria-hidden="true">${esc(initials(p.name))}</div>${avatar(p, true)}</div>
-          <div class="lot-info">
-            <p class="kicker">On the block</p>
-            <h2 class="lot-name">${esc(p.name)}</h2>
-            <div class="tags"><span class="tag cat">${esc(c.label)}</span>${p.role ? `<span class="tag">${esc(p.role)}</span>` : ""}${p.age ? `<span class="tag">Age ${esc(p.age)}</span>` : ""}</div>
-            ${p.tournaments_played ? `<p class="played"><b>Tournaments played</b>${esc(p.tournaments_played)}</p>` : ""}
-            <dl class="facts"><div><dt>Base price</dt><dd>${INR(base)}</dd></div><div><dt>Bid step</dt><dd>${INR(step)}</dd></div></dl>
-          </div>
-        </article>
-        <aside class="board" aria-label="Current bid">
-          <p class="kicker">${lead ? "Current bid" : "Opening price"}</p>
-          <div class="price-wrap"><div class="price num" id="price">${INR(st.price)}</div></div>
-          ${st.status === "paused" ? `<p class="paused-flag">Auction paused</p>` : ""}
-          <div class="leader">${lead ? `<i class="swatch" style="--c:${esc(lead.color)}"></i><b>${esc(lead.name)}</b><small>leading</small>` : `<b>No bids yet</b><small>waiting for the first bid</small>`}</div>
-          <p class="next">${lead ? "Next bid" : "First bid"} <b>${INR(next)}</b></p>
-          ${bids ? `<ol class="ladder" aria-label="Bid history">${bids}</ol>` : ""}
-        </aside>`;
-    } else {
-      const last = snap.events.find((e) => e.kind === "sold" || e.kind === "unsold");
-      const recent = last && Date.now() - new Date(last.created_at).getTime() < 10 * 60 * 1000;
-      const sold = snap.players.filter((x) => x.status === "sold").length;
-      const nothing = !snap.events.length && !sold;
-      const left = snap.players.filter((x) => x.status === "pool" && cat(x.category).base_price).length;
-      html = stampHtml() ? `<div class="idle">${stampHtml()}</div>` : `<div class="idle">
-        <p class="kicker">${nothing ? "Auction not started" : "Between players"}</p>
-        <h2>${nothing ? "The auction starts soon" : "Next player coming up"}</h2>
-        <p>${nothing ? "Teams, purses and the player list are below. This page updates live once bidding opens." : `${left} player${left === 1 ? "" : "s"} still to come.`}</p>
-        ${recent ? `<p class="last">${last.kind === "sold" ? `Last sale: <b>${esc(last.player_name)}</b> to <b>${esc(last.team_name)}</b> for <b>${INR(last.amount)}</b>` : `<b>${esc(last.player_name)}</b> went unsold`}</p>` : ""}
-      </div>`;
-    }
-    if (p && (st.status === "live" || st.status === "paused")) html += stampHtml();
-    if (html === lastStageHtml) return;
-    lastStageHtml = html;
-    $("#stage").innerHTML = html;
-    const pe = $("#price");
-    if (pe && lastLot === (p && p.id) && lastPrice !== null && lastPrice !== st.price && !reduce) { pe.classList.add("bump"); }
-    lastPrice = p ? st.price : null; lastLot = p ? p.id : null;
+  function avatar(p) {
+    return `<div class="av"><span aria-hidden="true">${esc(initials(p.name))}</span>${p.has_photo ? `<img src="/api/auction/state?photo=${esc(p.id)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ""}</div>`;
   }
 
   function renderTeams() {
-    const lead = snap.state.leading_team_id;
+    const lead = snap.state.status === "live" ? snap.state.leading_team_id : null;
     $("#teams-note").textContent = "Retained players are marked R. Max bid keeps enough back to fill the squad.";
-    $("#teams").innerHTML = snap.teams.map((t) => {
+    const nowSquads = new Map(snap.players.filter((p) => p.team_id).map((p) => [p.id, p.team_id]));
+    $("#teams").innerHTML = snap.teams.map((t, n) => {
       const mine = snap.players.filter((p) => p.team_id === t.id).sort((a, b) => (a.status === "retained" ? 0 : 1) - (b.status === "retained" ? 0 : 1) || String(a.sold_at).localeCompare(String(b.sold_at)));
       const pips = Array.from({ length: t.max_squad }, (_, i) => `<i class="${i < t.retained_count ? "r" : i < t.squad ? "b" : ""}"></i>`).join("");
-      const rows = mine.map((p) => `<li><span>${esc(p.name)}${p.status === "retained" ? "<em>R</em>" : ""}</span><b class="num">${short(p.price)}</b></li>`).join("");
-      return `<article class="team${lead === t.id ? " lead" : ""}" style="--c:${esc(t.color)}">
+      const rows = mine.map((p) => `<li${prevSquads && !prevSquads.has(p.id) ? ' class="just"' : ""}><span>${esc(p.name)}${p.status === "retained" ? "<em>R</em>" : ""}</span><b class="num">${short(p.price)}</b></li>`).join("");
+      return `<article class="team${lead === t.id ? " lead" : ""}${seen.teams ? " static" : ""}" style="--c:${esc(t.color)};--n:${n}">
         <div class="team-h"><h3>${esc(t.name)}</h3><small>of ${short(t.purse_total)}</small></div>
         <dl class="team-money">
-          <div><dt>Purse left</dt><dd class="num">${short(t.purse_left)}</dd></div>
-          <div class="sm"><dt>Max bid</dt><dd class="num">${t.slots_left > 0 ? short(t.max_bid) : "Full"}</dd></div>
+          <div><dt>Purse left</dt><dd class="num" data-cnt="left-${t.id}" data-v="${t.purse_left}">${short(t.purse_left)}</dd></div>
+          <div class="sm"><dt>Max bid</dt><dd class="num" ${t.slots_left > 0 ? `data-cnt="max-${t.id}" data-v="${t.max_bid}"` : ""}>${t.slots_left > 0 ? short(t.max_bid) : "Full"}</dd></div>
           <div class="pips" aria-label="${t.squad} of ${t.max_squad} players">${pips}<span class="num">${t.squad}/${t.max_squad}</span></div>
         </dl>
         <ul class="squad">${rows || `<li class="empty">No players yet</li>`}</ul>
       </article>`;
     }).join("");
+    document.querySelectorAll("#teams [data-cnt]").forEach((el) => {
+      const key = el.dataset.cnt, to = Number(el.dataset.v);
+      if (counts.has(key)) el._v = counts.get(key);
+      counts.set(key, to); S.countTo(el, to);
+    });
+    prevSquads = nowSquads; seen.teams = true;
   }
 
   const AVAIL = (p) => (p.status === "pool" || p.status === "live") && cat(p.category).base_price;
@@ -161,20 +123,22 @@
     }).sort((a, b) => (b.status === "live") - (a.status === "live") || a.serial - b.serial);
     const left = snap.players.filter(AVAIL).length;
     $("#players-note").textContent = `${snap.players.length} players · ${left} still available`;
-    $("#plist").innerHTML = rows.length ? rows.map((p) => {
+    $("#plist").innerHTML = rows.length ? rows.map((p, n) => {
       const t = p.team_id ? team(p.team_id) : null, c = cat(p.category);
       const stat = p.status === "sold" || p.status === "retained"
         ? `<b class="num">${INR(p.price)}</b><small><span class="st ${p.status}">${p.status === "sold" ? "Sold" : "Retained"}</span>${t ? esc(t.name) : ""}</small>`
         : `<b class="num">${c.base_price ? INR(c.base_price) : "Retention only"}</b><small><span class="st ${p.status}">${p.status === "live" ? "On the block" : p.status === "unsold" ? "Unsold" : "Available"}</span></small>`;
-      return `<li class="prow${p.status === "live" ? " live" : ""}"><div class="av"><span aria-hidden="true">${esc(initials(p.name))}</span>${avatar(p)}</div>
+      return `<li class="prow${p.status === "live" ? " live" : ""}${seen.players ? " static" : ""}" style="--n:${Math.min(n, 24)}">${avatar(p)}
         <div class="pmain"><b>${esc(p.name)}</b><small><span class="cat-dot">${esc(p.category)}</span>${esc(p.role || "Player")}${p.age ? ` · ${esc(p.age)} yrs` : ""}</small></div>
         <div class="pstat">${stat}</div></li>`;
     }).join("") : `<li class="empty-note" style="grid-column:1/-1">${snap.players.length ? "No players match." : "The player list will appear here once it's published."}</li>`;
+    seen.players = true;
   }
 
   function renderFeed() {
     const kinds = { sold: "Sold", unsold: "Unsold", retain: "Retained", unretain: "Released", revert: "Reversed" };
     const rows = snap.events.filter((e) => kinds[e.kind]);
+    const ids = new Set(rows.map((e) => e.id));
     $("#feed").innerHTML = rows.length ? rows.map((e) => {
       const who = `<b>${esc(e.player_name || "Player")}</b>`;
       const text = e.kind === "sold" ? `${who} sold to <b>${esc(e.team_name)}</b> for <b class="num">${INR(e.amount)}</b>`
@@ -182,8 +146,9 @@
         : e.kind === "retain" ? `<b>${esc(e.team_name)}</b> retained ${who} for <b class="num">${INR(e.amount)}</b>`
         : e.kind === "unretain" ? `${who} released by <b>${esc(e.team_name)}</b>`
         : `Sale of ${who} reversed`;
-      return `<li><span class="k ${e.kind}">${kinds[e.kind]}</span><span class="t">${text}</span><time datetime="${esc(e.created_at)}">${esc(time(e.created_at))}</time></li>`;
+      return `<li${prevFeedIds && !prevFeedIds.has(e.id) ? ' class="fresh"' : ""}><span class="k ${e.kind}">${kinds[e.kind]}</span><span class="t">${text}</span><time datetime="${esc(e.created_at)}">${esc(time(e.created_at))}</time></li>`;
     }).join("") : `<li class="empty-note">Nothing yet. Sales appear here as they happen.</li>`;
+    prevFeedIds = ids;
   }
 
   function renderRules() {
@@ -194,22 +159,23 @@
       items.push(["Squad", `${t0.max_squad} players`, `${per} retained + ${Math.max(t0.max_squad - per, 0)} to buy`]);
       items.push(["Purse per team", short(t0.purse_total), INR(t0.purse_total)]);
     }
-    for (const c of snap.categories) {
-      if (c.retention_value) items.push([`Retention ${c.code}`, short(c.retention_value), "deducted from the purse"]);
-    }
-    for (const c of snap.categories) {
-      if (c.base_price) items.push([`Category ${c.code}`, `${INR(c.base_price)} base`, `${INR(c.increment)} per bid`]);
-    }
+    for (const c of snap.categories) if (c.retention_value) items.push([`Retention ${c.code}`, short(c.retention_value), "deducted from the purse"]);
+    for (const c of snap.categories) if (c.base_price) items.push([`Category ${c.code}`, `${INR(c.base_price)} base`, `${INR(c.increment)} per bid`]);
     items.push(["Maximum bid", "Remaining purse", "enough stays back to fill the squad"]);
     $("#rules").innerHTML = items.map(([k, v, s]) => `<div><dt>${esc(k)}</dt><dd class="num">${esc(v)}${s ? `<small>${esc(s)}</small>` : ""}</dd></div>`).join("");
   }
 
   // ---------- tabs / filters ----------
-  const tabs = [...document.querySelectorAll("#tabs [data-tab]")];
+  function placeSlider() {
+    const on = tabs.find((b) => b.getAttribute("aria-selected") === "true"), s = $("#slider");
+    if (!on || !s || !on.offsetWidth) return;
+    s.style.width = on.offsetWidth + "px"; s.style.transform = `translateX(${on.offsetLeft}px)`;
+  }
   function selectTab(name, focus) {
     tab = name;
     tabs.forEach((b) => { const on = b.dataset.tab === name; b.setAttribute("aria-selected", on); b.tabIndex = on ? 0 : -1; if (on && focus) b.focus(); });
-    for (const n of ["teams", "players", "results"]) $("#p-" + n).hidden = n !== name;
+    for (const n of ["teams", "players", "results"]) { const p = $("#p-" + n); const show = n === name; if (show && p.hidden) S.restart(p, "in", 520); p.hidden = !show; }
+    placeSlider();
   }
   tabs.forEach((b, i) => {
     b.addEventListener("click", () => selectTab(b.dataset.tab));
@@ -218,12 +184,21 @@
       if (d) { e.preventDefault(); selectTab(tabs[(i + d + tabs.length) % tabs.length].dataset.tab, true); }
     });
   });
+  addEventListener("resize", placeSlider);
+  document.fonts && document.fonts.ready.then(placeSlider);
   $("#chips").addEventListener("click", (e) => {
     const b = e.target.closest("[data-f]"); if (!b) return;
     filter = b.dataset.f; document.querySelectorAll("#chips .chip").forEach((c) => c.setAttribute("aria-pressed", String(c === b)));
-    if (snap) renderPlayers();
+    seen.players = false; if (snap) renderPlayers();
   });
   $("#q").addEventListener("input", (e) => { query = e.target.value; if (snap) renderPlayers(); });
+
+  // ---------- full screen ----------
+  $("#fs-open").addEventListener("click", () => {
+    if (pres) return;
+    pres = S.openPresent({ title: snap ? snap.title : "The Turf Slam", onClose: () => { pres = null; } });
+    if (snap) pres.update(snap);
+  });
 
   poll();
 })();

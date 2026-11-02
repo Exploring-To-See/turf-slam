@@ -38,3 +38,10 @@ max bid limited by the remaining purse with enough held back to fill the squad.
 - Admin → Players: add registered players, set categories, retain players. Admin → Live control: bring on a player,
   tap a team (or keys 1-9, 0) to bid, Sold / Unsold / Undo / Pause. Admin → Teams and Rules and setup: everything editable.
 - The public page polls one tiny row (`ts_state.version`) every 2 s, so many viewers cost almost nothing.
+
+### Player-card motion (public `/auction`, its full-screen mode, and Admin → Live control)
+`public/shared/ts-stage.{js,css}` is the one place the player card, price board and animations live.
+It compares each new snapshot with the last one and plays the matching move: new player (card drops in, photo reveal, light sweep,
+ball rolls to the price), player swapped (old card exits), bid (price jump, ring, +step chip, leader flash, ladder row),
+undo (shake), sold (card held with SOLD stamp and confetti, then sent away), unsold (greyed card, UNSOLD stamp).
+All of it is switched off for visitors with "reduce motion" set.
