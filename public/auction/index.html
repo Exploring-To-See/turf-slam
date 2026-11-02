@@ -14,26 +14,21 @@
 <body class="lock pre">
 
 <div id="intro" role="presentation">
-  <div class="half top"></div><div class="half bot"></div>
-  <i class="beam b1"></i><i class="beam b2"></i><i class="beam b3"></i><i class="beam b4"></i>
-  <button class="intro-skip" id="intro-skip" type="button">Skip</button>
-  <div class="intro-core">
-    <div class="intro-logo-wrap"><img src="/assets/turf-slam-logo-1200-noball.webp" width="1200" height="452" alt="The Turf Slam"></div>
-    <p class="intro-sub">Player Auction</p>
-    <div class="intro-pitch" aria-hidden="true">
-      <i class="crease c1"></i><i class="crease c2"></i><i class="rc l"></i><i class="rc r"></i>
-      <div class="stumps"><i></i><i></i><i></i><b class="bail b1"></b><b class="bail b2"></b></div>
-      <span class="intro-ball"></span><span class="intro-hit"></span>
-    </div>
-    <div class="intro-bar" aria-hidden="true"><i></i></div>
+  <div class="i-sky"></div><i class="i-lamp l"></i><i class="i-lamp r"></i>
+  <div class="i-pitch" id="i-pitch"><span class="i-ball"></span></div>
+  <div class="i-flash"></div>
+  <div class="i-lockup">
+    <div class="i-logo"><img src="/assets/turf-slam-logo-1200.webp" width="1200" height="452" alt="The Turf Slam"></div>
+    <p class="i-title"><span>Player Auction</span><b>2026</b></p>
   </div>
+  <i class="i-wipe w1"></i><i class="i-wipe w2"></i>
+  <button class="intro-skip" id="intro-skip" type="button">Skip</button>
 </div>
 
 <div class="ground">
   <header class="bar">
     <div class="bar-in">
       <a class="brand" href="/auction" aria-label="The Turf Slam auction"><img class="face" src="/assets/turf-slam-logo-1200-noball.webp" width="1200" height="452" alt="The Turf Slam"></a>
-      <div id="pitch-top"></div>
     </div>
   </header>
 
@@ -41,6 +36,7 @@
     <div class="ticker still" id="ticker" aria-label="Latest sales"><span class="ticker-k">Latest</span><div class="ticker-view"><div class="ticker-track" id="ticker-track"><span>Sales will scroll here as they happen</span></div></div></div>
 
     <section id="stage" aria-live="polite" aria-label="Player under the hammer"></section>
+    <dl class="ts-stats stats-line" id="stats" aria-label="Auction so far"></dl>
 
     <div>
       <nav class="tabs" role="tablist" aria-label="Auction views" id="tabs">

@@ -62,6 +62,22 @@
   }
 
   // ---------- markup ----------
+  // chalk creases and a set of stumps at both ends of the pitch (top-down, as on the registration form)
+  const stumpsSvg = `<svg viewBox="0 0 62 26"><ellipse cx="31" cy="20" rx="26" ry="4" fill="rgba(60,40,15,0.25)"/><g class="stumpset"><g fill="#fffdf4" stroke="#7a5a2a" stroke-width="1"><circle cx="17" cy="12" r="5"/><circle cx="31" cy="12" r="5"/><circle cx="45" cy="12" r="5"/></g><g class="bails" stroke="#e7c27a" stroke-width="3" stroke-linecap="round"><path class="b1" d="M18 12h12"/><path class="b2" d="M32 12h12"/></g></g></svg>`;
+  const endHtml = (k) => `<div class="end ${k}"><i class="bc"></i><i class="pc"></i><i class="rc t"></i><i class="rc b"></i>${stumpsSvg}</div>`;
+  const marksHtml = () => `<div class="ts-marks" aria-hidden="true">${endHtml("a")}${endHtml("b")}</div>`;
+  // the numbers line: players left, sold, unsold, money spent
+  function statsHtml(snap) {
+    const auc = (p) => { const c = snap.categories.find((x) => x.code === p.category); return c && c.base_price; };
+    const left = snap.players.filter((p) => (p.status === "pool" || p.status === "live") && auc(p)).length;
+    const sold = snap.players.filter((p) => p.status === "sold");
+    const unsold = snap.players.filter((p) => p.status === "unsold").length;
+    const spent = sold.reduce((a, p) => a + (p.price || 0), 0);
+    const top = sold.reduce((m, p) => (!m || p.price > m.price ? p : m), null);
+    const items = [["Players to go", left, true], ["Sold", sold.length], ["Unsold", unsold], ["Spent at auction", short(spent)]];
+    if (top) items.push(["Top buy", `${top.name.split(" ")[0]} ${short(top.price)}`]);
+    return items.map(([k, v, hot]) => `<div${hot ? ' class="hot"' : ""}><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("");
+  }
   const photo = (p, eager) => (p.has_photo ? `<img src="/api/auction/state?photo=${esc(p.id)}" alt="" ${eager ? "" : 'loading="lazy" '}decoding="async" onerror="this.remove()">` : "");
   function boardInner(snap) {
     const st = snap.state, p = snap.players.find((x) => x.id === st.player_id), c = snap.categories.find((x) => x.code === p.category);
@@ -82,16 +98,16 @@
     if (p && (st.status === "live" || st.status === "paused")) {
       const c = snap.categories.find((x) => x.code === p.category);
       let i = 0; const ix = () => `style="--i:${i++}"`;
-      return `<div class="ts-wrap" data-pid="${esc(p.id)}" data-status="${esc(st.status)}">
+      return `<div class="ts-wrap ts-pitch" data-pid="${esc(p.id)}" data-status="${esc(st.status)}">${marksHtml()}
         <article class="ts-lot"><i class="ts-sweep"></i>
           <div class="ts-photo"><span class="ts-serial">#${String(p.serial).padStart(2, "0")}</span><div class="ts-initials" aria-hidden="true">${esc(initials(p.name))}</div>${photo(p, true)}</div>
           <div class="ts-info">
             <div class="ts-head">
-              <p class="ts-kicker">Under Hammer</p>
+              <p class="ts-kicker">Under the hammer</p>
               <h2 class="ts-name">${esc(p.name)}</h2>
-              <div class="ts-tags"><span class="ts-tag cat" ${ix()}>${esc(c.label)}</span>${p.role ? `<span class="ts-tag" ${ix()}>${esc(p.role)}</span>` : ""}${p.age ? `<span class="ts-tag" ${ix()}>Age ${esc(p.age)}</span>` : ""}</div>
             </div>
-            <dl class="ts-facts">${p.tournaments_played ? `<div class="played${String(p.tournaments_played).length > 26 ? " wide" : ""}" ${ix()}><dt>Tournaments played</dt><dd>${esc(p.tournaments_played)}</dd></div>` : ""}<div ${ix()}><dt>Base price</dt><dd>${INR(c.base_price)}</dd></div></dl>
+            <dl class="ts-facts"><div class="cat" ${ix()}><dt>Category</dt><dd>${esc(c.code)}</dd></div>${p.role ? `<div ${ix()}><dt>Role</dt><dd>${esc(p.role.replace(/^Only /, ""))}</dd></div>` : ""}${p.age ? `<div ${ix()}><dt>Age</dt><dd>${esc(p.age)}</dd></div>` : ""}<div ${ix()}><dt>Base price</dt><dd>${INR(c.base_price)}</dd></div></dl>
+            ${p.tournaments_played ? `<p class="ts-played" ${ix()}><b>Played</b>${esc(p.tournaments_played)}</p>` : ""}
           </div></article>
         <aside class="ts-board" aria-label="Current bid">${boardInner(snap)}</aside>
         <div class="ts-fx"></div></div>`;
@@ -101,7 +117,7 @@
     const sold = snap.players.filter((x) => x.status === "sold").length;
     const nothing = (snap.settings && "started_at" in snap.settings) ? !snap.settings.started_at && !sold : !snap.events.length && !sold;
     const left = snap.players.filter((x) => x.status === "pool" && snap.categories.find((c) => c.code === x.category).base_price).length;
-    return `<div class="ts-idle"><div class="ts-orbit" aria-hidden="true"><i></i><b></b></div>
+    return `<div class="ts-idle ts-pitch">${marksHtml()}<div class="ts-orbit" aria-hidden="true"><i></i><b></b></div>
       <p class="ts-kicker">${nothing ? "Auction not started" : "Between players"}</p>
       <h2>${nothing ? "The auction starts soon" : "Next player coming up"}</h2>
       <p>${nothing ? "Teams, purses and the player list are below. This page updates live once bidding opens." : `${left} player${left === 1 ? "" : "s"} still to come.`}</p>
@@ -209,10 +225,8 @@
     setTimeout(() => el.remove(), left + 40);
   }
 
-  // ---------- pitch end: popping and bowling creases, return creases and a set of stumps (as on the registration form) ----------
-  const pitchEndHtml = (cls = "") => `<div class="ts-pitch-end ${cls}" aria-hidden="true"><i class="bc"></i><i class="pc"></i><i class="rcl"></i><i class="rcr"></i><svg viewBox="0 0 62 26"><ellipse cx="31" cy="20" rx="26" ry="4" fill="rgba(60,40,15,0.25)"/><g class="stumpset"><g fill="#fffdf4" stroke="#7a5a2a" stroke-width="1"><circle cx="17" cy="12" r="5"/><circle cx="31" cy="12" r="5"/><circle cx="45" cy="12" r="5"/></g><g class="bails" stroke="#e7c27a" stroke-width="3" stroke-linecap="round"><path class="b1" d="M18 12h12"/><path class="b2" d="M32 12h12"/></g></g></svg></div>`;
   // on a sale the bails fly off every set of stumps on the page
-  document.addEventListener("bally", (e) => { if (e.detail === "sold" && !reduce) document.querySelectorAll(".ts-pitch-end").forEach((el) => restart(el, "out", 1700)); });
+  document.addEventListener("bally", (e) => { if (e.detail === "sold" && !reduce) document.querySelectorAll(".ts-marks").forEach((el) => restart(el, "out", 1700)); });
 
   // ---------- team scoreboard + full-screen shell ----------
   function stripHtml(snap) {
@@ -228,14 +242,14 @@
   }
   function openPresent({ onClose } = {}) {
     const el = node(`<div class="ts-present" role="dialog" aria-label="Full screen player card">
-      <i class="ts-ring" aria-hidden="true"></i>
-      <header class="ts-p-head"><span class="brand ts-p-brand"><img class="face" src="/assets/turf-slam-logo-1200-noball.webp" width="1200" height="452" alt="The Turf Slam"></span>${pitchEndHtml("top")}</header>
+      <header class="ts-p-head"><span class="brand ts-p-brand"><img class="face" src="/assets/turf-slam-logo-1200-noball.webp" width="1200" height="452" alt="The Turf Slam"></span></header>
       <div class="ts-p-main"><div class="ts-stage" data-stage></div></div>
+      <dl class="ts-stats ts-p-stats" data-stats></dl>
       <footer class="ts-p-strip" data-strip></footer>
       <button type="button" class="ts-p-x" data-x aria-label="Exit full screen">Exit</button></div>`);
     document.body.appendChild(el);
     document.body.style.overflow = "hidden";
-    const pres = presenter(el.querySelector("[data-stage]")), strip = el.querySelector("[data-strip]");
+    const pres = presenter(el.querySelector("[data-stage]")), strip = el.querySelector("[data-strip]"), stats = el.querySelector("[data-stats]");
     if (window.TSBally) window.TSBally.mount(el.querySelector(".ts-p-brand"));
     // the exit button only shows while the mouse moves, so the audience sees a clean screen
     let idleT = 0;
@@ -253,8 +267,8 @@
     el.querySelector("[data-x]").addEventListener("click", close);
     document.addEventListener("keydown", onKey, true);
     if (el.requestFullscreen) el.requestFullscreen().then(() => document.addEventListener("fullscreenchange", onFs)).catch(() => {});
-    return { update(snap) { if (closed) return; pres.update(snap); strip.innerHTML = stripHtml(snap); }, close, el };
+    return { update(snap) { if (closed) return; pres.update(snap); strip.innerHTML = stripHtml(snap); stats.innerHTML = statsHtml(snap); }, close, el };
   }
 
-  window.TSStage = { pitchEndHtml, esc, INR, short, initials, detect, presenter, playMini, applyStamp, mini, openPresent, countTo, confetti, restart, reduce };
+  window.TSStage = { statsHtml, marksHtml, esc, INR, short, initials, detect, presenter, playMini, applyStamp, mini, openPresent, countTo, confetti, restart, reduce };
 })();

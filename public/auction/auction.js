@@ -10,24 +10,26 @@
   const counts = new Map();      // purse numbers, so they roll from the old value to the new one
   let prevSquads = null, prevFeedIds = null, tickerKey = "";
   const stage = S.presenter($("#stage"));
-  $("#pitch-top").outerHTML = S.pitchEndHtml();
+  { const ip = $("#i-pitch"); if (ip) ip.insertAdjacentHTML("afterbegin", S.marksHtml()); }
   const tabs = [...document.querySelectorAll("#tabs [data-tab]")];
 
   // ---------- opening ----------
   const intro = $("#intro");
-  function endIntro() {
-    if (intro.isConnected) intro.remove();
+  // the page is revealed while the stinger's dark panel covers the screen; the panels finish crossing, then the intro goes
+  function reveal() {
     document.body.classList.remove("lock");
     requestAnimationFrame(() => { document.body.classList.remove("pre"); document.body.classList.add("ready"); });
     placeSlider();
   }
+  function endIntro() { if (intro.isConnected) intro.remove(); reveal(); }
   (function runIntro() {
     let seenBefore = false;
     try { seenBefore = sessionStorage.getItem("ts-auction-intro") === "1"; sessionStorage.setItem("ts-auction-intro", "1"); } catch (_) {}
     if (seenBefore) return endIntro();
     $("#intro-skip").addEventListener("click", endIntro);
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && intro.isConnected) endIntro(); });
-    setTimeout(endIntro, S.reduce ? 900 : 4300);
+    if (S.reduce) setTimeout(endIntro, 900);
+    else { setTimeout(reveal, 3780); setTimeout(endIntro, 4450); }
   })();
 
   // ---------- data ----------
@@ -49,6 +51,7 @@
   function render() {
     document.title = `${snap.title} · Turf Slam`;
     stage.update(snap);
+    $("#stats").innerHTML = S.statsHtml(snap);
     renderTicker();
     renderTeams();
     renderPlayers();
@@ -78,19 +81,16 @@
 
   function renderTeams() {
     const lead = snap.state.status === "live" ? snap.state.leading_team_id : null;
-    $("#teams-note").textContent = "Retained players are marked R. Max bid keeps enough back to fill the squad.";
+    $("#teams-note").textContent = "R = retained. Max bid keeps enough back to fill the squad.";
     const nowSquads = new Map(snap.players.filter((p) => p.team_id).map((p) => [p.id, p.team_id]));
     $("#teams").innerHTML = snap.teams.map((t, n) => {
       const mine = snap.players.filter((p) => p.team_id === t.id).sort((a, b) => (a.status === "retained" ? 0 : 1) - (b.status === "retained" ? 0 : 1) || String(a.sold_at).localeCompare(String(b.sold_at)));
       const pips = Array.from({ length: t.max_squad }, (_, i) => `<i class="${i < t.retained_count ? "r" : i < t.squad ? "b" : ""}"></i>`).join("");
-      const rows = mine.map((p) => `<li${prevSquads && !prevSquads.has(p.id) ? ' class="just"' : ""}><span>${esc(p.name)}${p.status === "retained" ? "<em>R</em>" : ""}</span><b class="num">${short(p.price)}</b></li>`).join("");
+      const rows = mine.map((p) => `<li${prevSquads && !prevSquads.has(p.id) ? ' class="just"' : ""}>${esc(p.name)}${p.status === "retained" ? "<em>R</em>" : ""}<b class="num">${short(p.price)}</b></li>`).join("");
       return `<article class="team${lead === t.id ? " lead" : ""}${seen.teams ? " static" : ""}" style="--c:${esc(t.color)};--n:${n}">
-        <div class="team-h"><h3>${esc(t.name)}</h3><small>of ${short(t.purse_total)}</small></div>
-        <dl class="team-money">
-          <div><dt>Purse left</dt><dd class="num" data-cnt="left-${t.id}" data-v="${t.purse_left}">${short(t.purse_left)}</dd></div>
-          <div class="sm"><dt>Max bid</dt><dd class="num" ${t.slots_left > 0 ? `data-cnt="max-${t.id}" data-v="${t.max_bid}"` : ""}>${t.slots_left > 0 ? short(t.max_bid) : "Full"}</dd></div>
-          <div class="pips" aria-label="${t.squad} of ${t.max_squad} players">${pips}<span class="num">${t.squad}/${t.max_squad}</span></div>
-        </dl>
+        <div class="team-name"><h3>${esc(t.name)}</h3><div class="pips" aria-label="${t.squad} of ${t.max_squad} players">${pips}<span class="num">${t.squad}/${t.max_squad}</span></div></div>
+        <div class="team-num"><span>Purse left</span><b class="num" data-cnt="left-${t.id}" data-v="${t.purse_left}">${short(t.purse_left)}</b></div>
+        <div class="team-num sm"><span>Max bid</span><b class="num" ${t.slots_left > 0 ? `data-cnt="max-${t.id}" data-v="${t.max_bid}"` : ""}>${t.slots_left > 0 ? short(t.max_bid) : "Full"}</b></div>
         <ul class="squad">${rows || `<li class="empty">No players yet</li>`}</ul>
       </article>`;
     }).join("");
