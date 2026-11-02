@@ -28,3 +28,13 @@ add, edit and delete entries, view photos and payment screenshots, search/filter
 - Admin users live in the `admin_users` table (scrypt password hash, 5 wrong attempts = 15 min lock). Sessions are
   HttpOnly cookies stored hashed in `admin_sessions` (8 h). No extra env vars needed.
 - To add or reset an admin, insert a row with `hashPassword()` from `api/_lib/admin.js`.
+
+## Auction (`/auction` public view, controls in Admin → Auction)
+Rules from the 2026 auction book: 10 teams, 10 players each (3 retained + 7 bought), Rs 1 crore purse,
+retention A+ 12,00,000 / A 9,00,000, auction categories A (base 1,00,000, step 10,000) and B (base 50,000, step 5,000),
+max bid limited by the remaining purse with enough held back to fill the squad.
+
+- Run `supabase/migrations/0005_auction.sql` (tables are all prefixed `ts_`; bidding rules are enforced in Postgres functions).
+- Admin → Players: add registered players, set categories, retain players. Admin → Live control: bring on a player,
+  tap a team (or keys 1-9, 0) to bid, Sold / Unsold / Undo / Pause. Admin → Teams and Rules and setup: everything editable.
+- The public page polls one tiny row (`ts_state.version`) every 2 s, so many viewers cost almost nothing.

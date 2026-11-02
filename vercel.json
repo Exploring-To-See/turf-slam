@@ -1,6 +1,9 @@
 {
   "outputDirectory": "public",
-  "rewrites": [{ "source": "/admin", "destination": "/admin/index.html" }],
+  "rewrites": [
+    { "source": "/admin", "destination": "/admin/index.html" },
+    { "source": "/auction", "destination": "/auction/index.html" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

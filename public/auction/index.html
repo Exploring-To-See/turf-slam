@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Turf Slam Player Auction</title>
+<meta name="description" content="Live player auction for The Turf Slam cricket tournament.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,700;1,800&family=Barlow:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/auction/auction.css">
+</head>
+<body class="lock">
+
+<div id="intro" role="presentation">
+  <div class="half top"></div><div class="half bot"></div>
+  <button class="intro-skip" id="intro-skip" type="button">Skip</button>
+  <div class="intro-core">
+    <img class="intro-logo" src="/assets/turf-slam-logo-1200-noball.webp" width="1200" height="452" alt="The Turf Slam">
+    <p class="intro-sub">Player Auction</p>
+    <div class="intro-pitch" aria-hidden="true">
+      <i class="crease c1"></i><i class="crease c2"></i><i class="rc l"></i><i class="rc r"></i>
+      <div class="stumps"><i></i><i></i><i></i><b class="bail b1"></b><b class="bail b2"></b></div>
+      <span class="intro-ball"></span>
+    </div>
+  </div>
+</div>
+
+<div class="ground">
+  <header class="bar">
+    <div class="bar-in">
+      <a class="brand" href="/auction" aria-label="The Turf Slam auction"><img src="/assets/turf-slam-logo-1200-noball.webp" width="1200" height="452" alt="The Turf Slam"></a>
+      <div class="bar-title"><span class="kicker">Player auction</span><b id="ev-title">The Turf Slam</b></div>
+      <div class="live off" id="live" role="status"><i class="dot"></i><span id="live-t">Connecting</span></div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="stage" id="stage" aria-live="polite" aria-label="Player on the block"></section>
+
+    <div>
+      <nav class="tabs" role="tablist" aria-label="Auction views" id="tabs">
+        <button role="tab" id="t-teams" aria-controls="p-teams" aria-selected="true" data-tab="teams">Teams <small id="n-teams"></small></button>
+        <button role="tab" id="t-players" aria-controls="p-players" aria-selected="false" data-tab="players" tabindex="-1">Players <small id="n-players"></small></button>
+        <button role="tab" id="t-results" aria-controls="p-results" aria-selected="false" data-tab="results" tabindex="-1">Results <small id="n-results"></small></button>
+      </nav>
+    </div>
+
+    <section class="panel" id="p-teams" role="tabpanel" aria-labelledby="t-teams">
+      <div class="panel-h"><h2>Team purses and squads</h2><p id="teams-note"></p></div>
+      <div class="teams" id="teams"></div>
+    </section>
+
+    <section class="panel" id="p-players" role="tabpanel" aria-labelledby="t-players" hidden>
+      <div class="panel-h"><h2>Auction players</h2><p id="players-note"></p></div>
+      <div class="tools">
+        <label class="sr" for="q">Search players</label>
+        <input class="search" id="q" type="search" placeholder="Search by name or role" autocomplete="off">
+        <div class="chips" id="chips" role="group" aria-label="Filter players">
+          <button class="chip" type="button" data-f="all" aria-pressed="true">All</button>
+          <button class="chip" type="button" data-f="available" aria-pressed="false">Available</button>
+          <button class="chip" type="button" data-f="sold" aria-pressed="false">Sold</button>
+          <button class="chip" type="button" data-f="unsold" aria-pressed="false">Unsold</button>
+          <button class="chip" type="button" data-f="retained" aria-pressed="false">Retained</button>
+          <button class="chip" type="button" data-f="A" aria-pressed="false">Cat A</button>
+          <button class="chip" type="button" data-f="B" aria-pressed="false">Cat B</button>
+        </div>
+      </div>
+      <ul class="plist" id="plist"></ul>
+    </section>
+
+    <section class="panel" id="p-results" role="tabpanel" aria-labelledby="t-results" hidden>
+      <div class="panel-h"><h2>Auction log</h2><p>Newest first</p></div>
+      <ul class="feed" id="feed"></ul>
+    </section>
+
+    <section class="rules" aria-labelledby="rules-h">
+      <h2 id="rules-h">The rules</h2>
+      <dl class="rule-grid" id="rules"></dl>
+    </section>
+  </main>
+
+  <footer class="foot">Tech Partner: Kendu Entertainment</footer>
+</div>
+
+<script src="/auction/auction.js"></script>
+</body>
+</html>
