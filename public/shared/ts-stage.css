@@ -25,7 +25,7 @@
 .ts-marks.out .b2 { animation: tsBailR 1300ms cubic-bezier(0.2, 0.7, 0.4, 1) both; }
 
 /* ---------- the player under the hammer ---------- */
-.ts-wrap { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 0.62fr); gap: clamp(18px, 2.4vw, 40px); align-items: center;
+.ts-wrap { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 0.74fr); gap: clamp(18px, 2.4vw, 40px); align-items: center;
   padding: clamp(22px, 3.2vh, 40px) var(--pad); }
 .ts-lot { position: relative; z-index: 1; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: clamp(18px, 2.2vw, 36px); align-items: center; }
 .ts-sweep { position: absolute; z-index: 3; top: -20%; bottom: -20%; left: -40%; width: 30%; pointer-events: none; opacity: 0;
@@ -55,11 +55,12 @@
 .ts-played b { margin-right: 8px; font: 700 0.72rem/1 var(--f-display); letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); }
 
 /* ---------- the bid board: the one dark panel ---------- */
-.ts-board { position: relative; z-index: 1; min-width: 0; display: grid; gap: clamp(8px, 1.4vh, 14px); align-content: start; padding: clamp(18px, 2.6vh, 28px) clamp(18px, 1.8vw, 28px);
+.ts-board { position: relative; z-index: 1; min-width: 0; container-type: inline-size; display: grid; gap: clamp(8px, 1.4vh, 14px); align-content: start; padding: clamp(18px, 2.6vh, 28px) clamp(18px, 1.8vw, 28px);
   border-radius: 16px; overflow: hidden; background: linear-gradient(180deg, rgba(6, 22, 9, 0.92), rgba(6, 22, 9, 0.84)); box-shadow: 0 0 0 1px rgba(255, 255, 250, 0.12), 0 24px 50px -24px rgba(0, 0, 0, 0.9); }
 .ts-board .ts-kicker { color: var(--muted); } .ts-board .ts-kicker::before { background: var(--lime); }
 .ts-price-wrap { position: relative; }
-.ts-price { position: relative; z-index: 1; font: 800 clamp(3rem, 6.4vw, 6.6rem)/0.95 var(--f-display); color: var(--willow); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* the price always fits its board: ₹12,00,000 is ten characters wide, so it is capped by the board's width */
+.ts-price { position: relative; z-index: 1; font: 800 min(clamp(3rem, 6.4vw, 6.6rem), 18cqi)/0.95 var(--f-display); color: var(--willow); letter-spacing: -0.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ts-leader { position: relative; display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 6px 12px 6px 0; min-width: 0; border-top: 1px solid rgba(255, 255, 250, 0.14); border-bottom: 1px solid rgba(255, 255, 250, 0.14); }
 .ts-leader::before { content: ""; align-self: stretch; width: 6px; border-radius: 3px; background: var(--c, rgba(255, 255, 250, 0.25)); }
 .ts-leader b { font: 800 italic clamp(1.3rem, 1.8vw, 1.9rem)/1.05 var(--f-display); text-transform: uppercase; overflow-wrap: anywhere; }
@@ -199,13 +200,13 @@
 .ts-p-main { position: relative; min-height: 0; display: grid; align-items: center; padding: clamp(8px, 1.6vh, 20px) clamp(20px, 3vw, 56px); }
 .ts-p-main .ts-stage { width: 100%; max-width: 1760px; margin: 0 auto; }
 .ts-p-stats { padding: 0 24px clamp(10px, 2vh, 22px); }
-.ts-present .ts-photo { height: min(46vh, 560px); }
+.ts-present .ts-photo { height: min(40vh, 540px); }
 .ts-present .ts-name { font-size: clamp(2.8rem, 5vw, 6rem); }
 .ts-present .ts-kicker { font-size: clamp(0.85rem, 1vw, 1.1rem); }
 .ts-present .ts-facts dt { font-size: clamp(0.72rem, 0.85vw, 0.95rem); }
 .ts-present .ts-facts dd { font-size: clamp(1.3rem, 1.9vw, 2.2rem); }
 .ts-present .ts-played { font-size: clamp(1rem, 1.15vw, 1.3rem); }
-.ts-present .ts-price { font-size: clamp(3.6rem, 7.4vw, 9rem); }
+.ts-present .ts-price { font-size: min(clamp(3.6rem, 7.4vw, 9rem), 18cqi); }
 .ts-present .ts-leader { min-height: 60px; } .ts-present .ts-leader b { font-size: clamp(1.6rem, 2.2vw, 2.6rem); }
 .ts-present .ts-next { font-size: clamp(1rem, 1.2vw, 1.3rem); }
 .ts-present .ts-ladder li { font-size: clamp(1rem, 1.15vw, 1.25rem); padding: 7px 0; } .ts-present .ts-ladder li b { font-size: clamp(1.15rem, 1.4vw, 1.5rem); }
@@ -256,7 +257,7 @@
   .ts-facts > div:nth-child(odd) { padding-left: 0; border-left: 0; }
   .ts-played { grid-area: played; }
   .ts-name { font-size: clamp(1.8rem, 8.4vw, 2.8rem); }
-  .ts-price { font-size: clamp(2.8rem, 15vw, 4.4rem); }
+  .ts-price { font-size: min(clamp(2.8rem, 15vw, 4.4rem), 18cqi); }
   .ts-present .ts-board { order: -1; }
   .ts-p-strip { display: flex; overflow-x: auto; scrollbar-width: none; }
   .ts-p-strip::-webkit-scrollbar { display: none; }
