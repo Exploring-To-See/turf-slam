@@ -1,7 +1,7 @@
 const { db } = require("./supabase");
 
 const PLAYER_COLS = "id, serial, name, role, age, tournaments_played, category, status, team_id, price, sold_at, has_photo";
-const PLAYER_COLS_ADMIN = PLAYER_COLS + ", notes, registration_id, registration_reference";
+const PLAYER_COLS_ADMIN = PLAYER_COLS + ", notes, registration_id, registration_reference, queue_pos, payment_status";
 
 async function one(q) {
   const { data, error } = await q;
@@ -34,7 +34,7 @@ async function snapshot({ admin = false } = {}) {
     v: Number(state.version),
     now: new Date().toISOString(),
     title: settings.title,
-    settings: { retain_per_team: settings.retain_per_team, show_photos: settings.show_photos },
+    settings: { retain_per_team: settings.retain_per_team, show_photos: settings.show_photos, started_at: settings.started_at || null },
     categories,
     state: { status: state.status, player_id: state.current_player_id, price: Number(state.current_price), leading_team_id: state.leading_team_id, bids },
     teams: teams.map((t) => ({ ...t, purse_total: Number(t.purse_total), spent: Number(t.spent), purse_left: Number(t.purse_left), max_bid: Number(t.max_bid) })),
