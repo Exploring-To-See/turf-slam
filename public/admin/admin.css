@@ -307,3 +307,6 @@ dialog::backdrop { background: rgba(5, 20, 6, 0.72); }
 .rgroup li .badge { font-size: 0.72rem; padding: 2px 8px; }
 .probs { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
 .acts .badge, .card-h .badge { display: inline-flex; align-items: center; min-height: 34px; }
+.select.nocat { border-color: var(--amber); box-shadow: 0 0 0 2px rgba(255, 212, 121, 0.45); font-weight: 700; }
+.setcat { display: inline-flex; gap: 4px; margin-left: 6px; vertical-align: middle; }
+.setcat .mini { min-height: 28px; padding: 0 10px; }

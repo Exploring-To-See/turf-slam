@@ -29,8 +29,10 @@ function playerFields(b, { partial }) {
   if (!partial || "age" in b) out.age = int(b.age, "Age", { min: 5, max: 99, optional: true });
   if (!partial || "tournaments_played" in b) out.tournaments_played = String(b.tournaments_played ?? "").trim().slice(0, 300) || null;
   if (!partial || "category" in b) {
-    if (!CATS.includes(b.category)) throw bad("Pick a category.");
-    out.category = b.category;
+    // empty = not set yet (players not on the category list start like this until an admin picks one)
+    if (b.category === "" || b.category == null) out.category = null;
+    else if (!CATS.includes(b.category)) throw bad("Pick a category.");
+    else out.category = b.category;
   }
   if ("notes" in b) out.notes = String(b.notes ?? "").trim().slice(0, 500) || null;
   return out;
@@ -69,14 +71,15 @@ const actions = {
     await one(sb.from("ts_players").update({ queue_pos: null }).eq("id", b.player_id));
   },
   async queue_clear(sb) { await one(sb.from("ts_players").update({ queue_pos: null }).not("queue_pos", "is", null)); },
-  // Apply the official category list: add paid registrations that are on it, set their categories,
-  // and make every retained player who is not category A an A+.
+  // Bring the pool in line with the registration form: add every paid registration that is not in the auction yet
+  // (with its category from the list, or none if it is not on the list), fill and correct categories from the list,
+  // and make every retained player who is not category A an A+. The list itself never adds anyone.
   async apply_roster(sb) {
     const regs = await one(sb.from("registrations").select("id, name, payment_status").eq("status", "received").limit(2000));
-    const players = await one(sb.from("ts_players").select("id, name, category, status, registration_id"));
+    const players = await one(sb.from("ts_player_cards").select("id, name, category, status, registration_id, payment_status"));
     const c = roster.check(regs, players);
-    for (const m of c.notImported) await one(sb.rpc("ts_import_one", { p_reg: m.reg.id, p_category: m.category }));
-    for (const m of c.wrongCat) if (["pool", "unsold"].includes(m.player.status)) await one(sb.rpc("ts_set_category", { p_player: m.player.id, p_category: m.category }));
+    for (const m of c.notImported) await one(sb.rpc("ts_import_one", { p_reg: m.reg.id, p_category: m.list ? m.list.category : null }));
+    for (const m of c.fillFromList.concat(c.mismatch)) if (["pool", "unsold"].includes(m.player.status)) await one(sb.rpc("ts_set_category", { p_player: m.player.id, p_category: m.list.category }));
     for (const p of c.retainedToFix) await one(sb.rpc("ts_set_category", { p_player: p.id, p_category: "A+" }));
   },
   async bid(sb, b) { await one(sb.rpc("ts_place_bid", { p_team: int(b.team_id, "Team", { min: 1 }), p_amount: b.amount ? int(b.amount, "Amount", { min: 1 }) : null })); },
@@ -95,6 +98,11 @@ const actions = {
   async import(sb, b) {
     const ids = Array.isArray(b.registration_ids) ? b.registration_ids.filter((x) => UUID_RE.test(String(x))) : [];
     if (!ids.length) throw bad("Select at least one registered player.");
+    if (b.category === "list") {   // category from the list; anyone not on it comes in with no category
+      const regs = await one(sb.from("registrations").select("id, name").in("id", ids));
+      for (const r of regs) { const l = roster.listed(r.name); await one(sb.rpc("ts_import_one", { p_reg: r.id, p_category: l ? l.category : null })); }
+      return;
+    }
     if (!CATS.includes(b.category)) throw bad("Pick a category for the imported players.");
     await one(sb.rpc("ts_import_registrations", { p_ids: ids, p_category: b.category }));
   },
@@ -104,7 +112,7 @@ const actions = {
     const f = playerFields(b, { partial: true });
     const cur = await one(sb.from("ts_players").select("status, category").eq("id", b.id).single());
     // category goes through the database so a retained player's retention value follows it
-    if ("category" in f && f.category !== cur.category) await one(sb.rpc("ts_set_category", { p_player: b.id, p_category: f.category }));
+    if ("category" in f && f.category !== cur.category) await one(sb.rpc("ts_set_category", { p_player: b.id, p_category: f.category }));   // null clears it
     delete f.category;
     if (Object.keys(f).length) await one(sb.from("ts_players").update({ ...f, updated_at: new Date().toISOString() }).eq("id", b.id));
   },

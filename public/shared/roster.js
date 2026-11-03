@@ -1,5 +1,5 @@
-/* The official auction list (A and B category players) and the name matching used to check it against the
-   registrations. Shared by the admin console (browser) and the API (Node), so both sides agree on who is who.
+/* The official A / B category list and the name matching used to look a registered player up in it.
+   The list never adds players: the auction pool is only people who filled the registration form. Shared by the admin console (browser) and the API (Node), so both sides agree on who is who.
    Names are matched on letters only, lower case, with doubled letters squashed ("Aanurag" = "Anurag",
    "Anujj" = "Anuj"); anything else that differs is reported so it can be fixed by hand. */
 (function (root) {
@@ -45,28 +45,33 @@
     return pool.map((n) => ({ n, d: dist(k, key(n)) })).filter((x) => x.d > 0 && x.d <= max).sort((a, b) => a.d - b.d).slice(0, 2).map((x) => x.n);
   }
 
-  /* Compare the list with the registrations (and the auction players, if given).
-     regs: [{id, name, payment_status}], players: [{id, name, category, status, registration_id}] */
+  /* Players come only from the registration form; the list is just where categories come from.
+     For every registration with payment received this works out what it needs:
+       notImported   not in the auction yet (Apply adds them, with their list category if they have one)
+       fillFromList  in the auction with no category, but on the list (Apply fills it in)
+       mismatch      category differs from the list (Apply sets the list category)
+       needCategory  not on the list and no category yet: an admin sets it by hand
+       byHand        not on the list, category set by an admin (fine)
+       dupes         the same name registered more than once with payment received
+     plus pool players who did not come from a paid form (left out of the auction) and retained players
+     who are not A or A+ (Apply makes them A+).
+     regs: [{id, name, payment_status}], players: [{id, name, category, status, registration_id, payment_status}] */
   function check(regs, players = []) {
     const paid = regs.filter((r) => r.payment_status === "verified");
-    const regsByKey = new Map();
-    for (const r of regs) { const k = key(r.name); if (!regsByKey.has(k)) regsByKey.set(k, []); regsByKey.get(k).push(r); }
     const playerByReg = new Map(players.filter((p) => p.registration_id).map((p) => [p.registration_id, p]));
-    const regNames = regs.map((r) => r.name), listNames = LIST.map((x) => x.name);
-
-    const missing = [], unpaid = [], dupes = [], matched = [];
-    for (const x of LIST) {
-      const hits = regsByKey.get(x.key) || [];
-      const paidHits = hits.filter((r) => r.payment_status === "verified");
-      if (!hits.length) missing.push({ ...x, near: near(x.name, regNames) });
-      else if (!paidHits.length) unpaid.push({ ...x, reg: hits[0] });
-      else { if (paidHits.length > 1) dupes.push({ ...x, regs: paidHits }); matched.push({ ...x, reg: paidHits[0], player: playerByReg.get(paidHits[0].id) || null }); }
-    }
-    const unlisted = paid.filter((r) => !byKey.has(key(r.name))).map((r) => ({ reg: r, near: near(r.name, listNames) }));
-    const notImported = matched.filter((m) => !m.player);
-    const wrongCat = matched.filter((m) => m.player && m.player.category !== m.category);
+    const listNames = LIST.map((x) => x.name);
+    const rows = paid.map((r) => { const l = listed(r.name); return { reg: r, name: r.name, list: l, player: playerByReg.get(r.id) || null, near: l ? [] : near(r.name, listNames) }; });
+    const byName = new Map();
+    for (const x of rows) { const k = key(x.name); if (!byName.has(k)) byName.set(k, []); byName.get(k).push(x.reg); }
+    const dupes = [...byName.values()].filter((g) => g.length > 1).map((g) => ({ name: g[0].name, regs: g }));
+    const notImported = rows.filter((x) => !x.player);
+    const fillFromList = rows.filter((x) => x.player && !x.player.category && x.list);
+    const mismatch = rows.filter((x) => x.player && x.player.category && x.list && x.player.category !== x.list.category);
+    const needCategory = rows.filter((x) => !x.list && !(x.player && x.player.category));
+    const byHand = rows.filter((x) => !x.list && x.player && x.player.category);
+    const notFromForm = players.filter((p) => (p.status === "pool" || p.status === "unsold") && p.payment_status !== "verified");
     const retainedToFix = players.filter((p) => p.status === "retained" && p.category !== "A" && p.category !== "A+");
-    return { total: TOTAL, paid: paid.length, matched, missing, unpaid, dupes, unlisted, notImported, wrongCat, retainedToFix };
+    return { paid: paid.length, rows, dupes, notImported, fillFromList, mismatch, needCategory, byHand, notFromForm, retainedToFix };
   }
 
   const api = { ROSTER, TOTAL, LIST, key, listed, near, check };

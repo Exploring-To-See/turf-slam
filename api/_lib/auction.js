@@ -29,6 +29,8 @@ async function snapshot({ admin = false } = {}) {
     ? await one(sb.from("ts_bids").select("id, team_id, amount, created_at").eq("player_id", state.current_player_id).order("id", { ascending: false }).limit(12))
     : [];
   if (!settings.show_photos && !admin) players.forEach((p) => (p.has_photo = false));
+  // the public page only lists players whose category is settled
+  const shown = admin ? players : players.filter((p) => p.category);
 
   const snap = {
     v: Number(state.version),
@@ -38,7 +40,7 @@ async function snapshot({ admin = false } = {}) {
     categories,
     state: { status: state.status, player_id: state.current_player_id, price: Number(state.current_price), leading_team_id: state.leading_team_id, bids },
     teams: teams.map((t) => ({ ...t, purse_total: Number(t.purse_total), spent: Number(t.spent), purse_left: Number(t.purse_left), max_bid: Number(t.max_bid) })),
-    players: players.map((p) => ({ ...p, price: p.price == null ? null : Number(p.price) })),
+    players: shown.map((p) => ({ ...p, price: p.price == null ? null : Number(p.price) })),
     events,
   };
 
