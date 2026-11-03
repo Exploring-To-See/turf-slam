@@ -20,7 +20,7 @@
   let R = null;            // registrations
   let route = "overview";
   let seenRegs = null, freshRegs = new Set();
-  const ui = { sel: new Set(), regFilter: "all", regQ: "", pf: "all", pc: "all", pq: "", pickCat: "any", pickQ: "" };
+  const ui = { pickSt: "all", sel: new Set(), regFilter: "all", regQ: "", pf: "all", pc: "all", pq: "", pickCat: "any", pickQ: "" };
   const drafts = {};       // unsaved field values, survive re-renders
   let pendingTr = [], fsPres = null;   // animation moves waiting for the next render; the full-screen card
   function setA(next) { const tr = window.TSStage.detect(A, next); pendingTr = pendingTr.concat(tr); A = next; if (fsPres) fsPres.update(A); }
@@ -275,12 +275,13 @@
 
     const q = ui.pickQ.trim().toLowerCase();
     const allElig = A.players.filter(eligible);
-    const avail = allElig.filter((x) => (ui.pickCat === "any" || x.category === ui.pickCat) && (!q || `${x.name} ${x.role || ""}`.toLowerCase().includes(q)));
+    const avail = allElig.filter((x) => (ui.pickSt === "all" || x.status === ui.pickSt) && (ui.pickCat === "any" || x.category === ui.pickCat) && (!q || `${x.name} ${x.role || ""}`.toLowerCase().includes(q)));
     const nUnsold = allElig.filter((x) => x.status === "unsold").length;
     const blocked = A.players.filter((x) => (x.status === "pool" || x.status === "unsold") && auctionable(x) && !paid(x)).length;
     const qd = queue();
     const pool = allElig.filter((x) => x.status === "pool" && (ui.pickCat === "any" || x.category === ui.pickCat)).length;
     const nextLine = qd.length ? `Next: <b>${esc(qd[0].name)}</b> from the queue` : allElig.length ? `Queue empty: a random ${ui.pickCat === "any" ? "" : "category " + ui.pickCat + " "}player${pool ? "" : " (from the unsold list)"}` : "No players left";
+    const segSt = (v, l) => `<button type="button" data-act="pickst" data-v="${v}" aria-pressed="${ui.pickSt === v}">${l}</button>`;
     const seg = (v, l) => `<button type="button" data-act="pickcat" data-v="${v}" aria-pressed="${ui.pickCat === v}">${l}</button>`;
     const bringOff = !started() || !!p || !allElig.length;
 
@@ -302,9 +303,10 @@
             ${qd.length ? `<ol class="qlist">${qd.map((x, i) => `<li data-id="${esc(x.id)}"><span class="qn">${i + 1}</span><span><b>${esc(x.name)}</b><small>Cat ${esc(x.category)}${x.role ? " · " + esc(x.role) : ""}</small></span><button class="mini" type="button" data-act="queue-remove">Remove</button></li>`).join("")}</ol>` : `<p class="hint" style="margin:0">Nobody queued. Use <b>Add to queue</b> below to line players up; otherwise players come at random.</p>`}</div>
           <label class="sr" for="pickq">Search players</label>
           <input class="input sm" id="pickq" data-keep="pickq" type="search" placeholder="Search the ${allElig.length} players who can be auctioned" value="${esc(ui.pickQ)}" style="margin-top:12px" autocomplete="off">
-          ${nUnsold ? `<p class="hint">${nUnsold} unsold player${nUnsold === 1 ? "" : "s"} can be brought back.</p>` : ""}
+          <div class="seg" role="group" aria-label="Show players" style="margin-top:10px">${segSt("all", `All (${allElig.length})`)}${segSt("pool", `Pool (${allElig.length - nUnsold})`)}${segSt("unsold", `Unsold (${nUnsold})`)}</div>
+          ${nUnsold ? `<p class="hint">${nUnsold} unsold player${nUnsold === 1 ? "" : "s"} can be brought back under the hammer.</p>` : ""}
           ${blocked ? `<p class="hint warn">${blocked} player${blocked === 1 ? "" : "s"} in the pool without payment received ${blocked === 1 ? "is" : "are"} left out of the auction.</p>` : ""}
-          <ul class="picklist">${avail.slice(0, 80).map((x) => `<li class="pick" data-id="${esc(x.id)}">${avatar(x)}<span><b>${esc(x.name)}</b><small>#${x.serial} · Cat ${esc(x.category)}${x.role ? " · " + esc(x.role) : ""}${x.status === "unsold" ? " · unsold" : ""}</small></span><span class="btns">${queueBtn(x)}</span></li>`).join("") || `<li class="hint">${A.players.length ? "No players match." : "No players yet. Add them on the Players page."}</li>`}</ul></section>
+          <ul class="picklist">${avail.slice(0, 80).map((x) => `<li class="pick" data-id="${esc(x.id)}">${avatar(x)}<span><b>${esc(x.name)}</b><small>#${x.serial} · Cat ${esc(x.category)}${x.role ? " · " + esc(x.role) : ""}${x.status === "unsold" ? " · unsold" : ""}</small></span><span class="btns"><button class="mini primary" type="button" data-act="bring-now" ${bringOff ? "disabled" : ""}>Bring now</button>${queueBtn(x)}</span></li>`).join("") || `<li class="hint">${A.players.length ? "No players match." : "No players yet. Add them on the Players page."}</li>`}</ul></section>
         <section class="card"><div class="card-h"><h2>Activity</h2></div>
           <ul class="log">${A.events.slice(0, 14).map((e) => `<li><span class="k ${esc(e.kind)}">${esc(evLabel(e.kind))}</span><span>${esc(evText(e))}</span><time>${esc(clock(e.created_at))}</time></li>`).join("") || `<li><span></span><span>Nothing yet.</span><span></span></li>`}</ul></section>
       </div>`;
@@ -378,7 +380,7 @@
           <div><label class="sr" for="cat-${esc(p.id)}">Level</label><select class="select sm" id="cat-${esc(p.id)}" data-change="player-cat" ${locked ? "disabled title=\"Revert the sale to change category\"" : ""}>${levelOpts(p.category, (c) => "Level " + c.code)}</select></div>
           <div class="pstat"><span class="badge b-${esc(p.status)}">${{ pool: "To come", live: "Under hammer", sold: "Sold", unsold: "Unsold", retained: "Retained" }[p.status]}</span>${t ? `${teamChip(t)} <span class="money">${INR(p.price)}</span>` : `<span class="hint" style="margin:0">${auctionable(p) ? "Base " + INR(cat(p.category).base_price) : "Retention only"}</span>`}</div>
           <div class="btns">
-            ${eligible(p) ? queueBtn(p) : ""}
+            ${eligible(p) ? `<button class="mini primary" type="button" data-act="bring-now" ${started() && !A.state.player_id ? "" : "disabled"}>Bring now</button>${queueBtn(p)}` : ""}
             ${ret ? `<button class="mini" type="button" data-act="retain">Retain…</button>` : ""}
             ${p.status === "retained" ? `<button class="mini" type="button" data-act="release">Release</button>` : ""}
             ${p.status === "sold" ? `<button class="mini" type="button" data-act="revert">Revert sale</button>` : ""}
@@ -660,6 +662,8 @@
     // live
     fs() { if (fsPres) return; fsPres = window.TSStage.openPresent({ onClose: () => { fsPres = null; } }); fsPres.update(A); },
     bring: () => act("bring", { category: ui.pickCat === "any" ? undefined : ui.pickCat }, "Under the hammer"),
+    "bring-now": (b) => act("bring", { player_id: idOf(b) }, "Under the hammer"),
+    pickst: (b) => { ui.pickSt = b.dataset.v; render(); },
     "queue-add": (b) => act("queue_add", { player_id: idOf(b) }, "Added to the queue"),
     "queue-remove": (b) => act("queue_remove", { player_id: idOf(b) }, "Removed from the queue"),
     "queue-clear": () => act("queue_clear", {}, "Queue cleared"),

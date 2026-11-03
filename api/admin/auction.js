@@ -44,6 +44,15 @@ const actions = {
   async bring(sb, b) {
     const st = await one(sb.from("ts_state").select("current_player_id").eq("id", 1).single());
     if (st.current_player_id) throw bad("A player is still under the hammer. Mark them sold or unsold first.");
+    // a chosen player (from the pool or the unsold list) goes straight under the hammer
+    if (b.player_id) {
+      if (!UUID_RE.test(String(b.player_id))) throw bad("Bad request.");
+      const p = await one(sb.from("ts_players").select("name, category, status, queue_pos").eq("id", b.player_id).single());
+      if (!["pool", "unsold"].includes(p.status)) throw bad(`${p.name} is not available for the auction.`);
+      if (!["A", "B"].includes(p.category)) throw bad(`${p.name} has no level yet. Give them A or B first.`);
+      await one(sb.rpc("ts_open_lot", { p_player: b.player_id }));
+      return;
+    }
     const eligible = await one(sb.from("ts_player_cards").select("id, category, status, queue_pos")
       .in("status", ["pool", "unsold"]).in("category", ["A", "B"]));
     const queued = eligible.filter((p) => p.queue_pos != null).sort((x, y) => x.queue_pos - y.queue_pos);
