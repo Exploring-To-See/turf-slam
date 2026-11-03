@@ -135,7 +135,7 @@
   const cat = (c) => A.categories.find((x) => x.code === c);
   const auctionable = (p) => !!cat(p.category).base_price;
   const RS = window.TSRoster;
-  const paid = (p) => p.payment_status === "verified";
+  const paid = () => true;   // payment status never blocks a player from the auction
   const eligible = (p) => (p.status === "pool" || p.status === "unsold") && auctionable(p) && paid(p);   // can go under the hammer
   const queue = () => A.players.filter((p) => p.queue_pos != null && eligible(p)).sort((a, b) => a.queue_pos - b.queue_pos);
   const started = () => !!(A.settings && A.settings.started_at);
@@ -332,7 +332,7 @@
       </div>
       ${hand || fixable ? "" : `<p class="hint">Everything matches the list.</p>`}
       ${group("bad", "On the list, but not found in the registrations", "Usually a spelling difference. Edit the registration name to match the list (or add the entry).", c.missing.map((x) => `<li>${nm(x.name)} <span class="badge">Cat ${x.category}</span>${hint(x.near, "Registered as")}</li>`))}
-      ${group("warn", "On the list, but payment not received", "Mark their payment received on the Registrations page, or they stay out of the auction.", c.unpaid.map((x) => `<li>${nm(x.name)} <span class="badge">Cat ${x.category}</span> <span class="badge b-${esc(x.reg.payment_status)}">${esc(PAY[x.reg.payment_status] || x.reg.payment_status)}</span></li>`))}
+      ${group("warn", "On the list, payment not yet confirmed", "Payment does not block the auction. Apply list categories adds them to the pool.", c.unpaid.map((x) => `<li>${nm(x.name)} <span class="badge">Cat ${x.category}</span> <span class="badge b-${esc(x.reg.payment_status)}">${esc(PAY[x.reg.payment_status] || x.reg.payment_status)}</span></li>`))}
       ${group("warn", "Payment received, but not on the list", "These have no category from the list. Fix the name if it is a spelling difference, or set the category by hand.", c.unlisted.map((x) => `<li>${nm(x.reg.name)}${hint(x.near, "On the list as")}</li>`))}
       ${group("warn", "Registered more than once with payment received", "Delete the extra entry so the player is counted once.", c.dupes.map((x) => `<li>${nm(x.name)} <small>${x.regs.map((r) => esc(r.reference)).join(", ")}</small></li>`))}
       ${group("info", "Not in the auction yet", "Apply adds them with their list category.", c.notImported.map((x) => `<li>${nm(x.name)} <span class="badge">Cat ${x.category}</span></li>`))}
@@ -658,19 +658,17 @@
     async start() {
       const c = rcheck(), probs = [];
       const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
-      if (c.paid !== c.total) probs.push(`${c.paid} registrations have payment received; the list has ${c.total}.`);
       if (c.missing.length) probs.push(`${n(c.missing.length, "name", "names")} on the list ${c.missing.length === 1 ? "is" : "are"} not in the registrations: ${c.missing.slice(0, 6).map((x) => x.name).join(", ")}${c.missing.length > 6 ? "…" : ""}`);
-      if (c.unpaid.length) probs.push(`${n(c.unpaid.length, "player", "players")} on the list without payment received: ${c.unpaid.slice(0, 6).map((x) => x.name).join(", ")}${c.unpaid.length > 6 ? "…" : ""}`);
       if (c.unlisted.length) probs.push(`${n(c.unlisted.length, "paid registration", "paid registrations")} not on the list (no category): ${c.unlisted.slice(0, 6).map((x) => x.reg.name).join(", ")}${c.unlisted.length > 6 ? "…" : ""}`);
       if (c.dupes.length) probs.push(`${n(c.dupes.length, "player is", "players are")} registered twice with payment.`);
-      if (c.notImported.length) probs.push(`${n(c.notImported.length, "paid player is", "paid players are")} not in the auction yet (Apply list categories fixes this).`);
+      if (c.notImported.length) probs.push(`${n(c.notImported.length, "listed player is", "listed players are")} not in the auction yet (Apply list categories fixes this).`);
       if (c.wrongCat.length) probs.push(`${n(c.wrongCat.length, "player has", "players have")} a category different from the list (Apply fixes this).`);
       if (c.retainedToFix.length) probs.push(`${n(c.retainedToFix.length, "retained player is", "retained players are")} not A or A+ (Apply fixes this).`);
       if (!probs.length) {
-        if (await ask({ title: "Start the auction?", text: `All ${c.total} players have payment received and a category. Bring player will then put them under the hammer.`, ok: "Start auction" })) act("start", {}, "Auction started");
+        if (await ask({ title: "Start the auction?", text: `All ${c.total} listed players are in the auction with a category. Bring player will then put them under the hammer.`, ok: "Start auction" })) act("start", {}, "Auction started");
         return;
       }
-      openDlg(`<h2>Fix these before starting</h2><p class="hint" style="margin:6px 0 10px">Only players with payment received and a category from the list should be in the auction.</p>
+      openDlg(`<h2>Fix these before starting</h2><p class="hint" style="margin:6px 0 10px">Every listed player should be in the auction with their list category. Payment status does not matter.</p>
         <ul class="probs">${probs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
         <div class="dlg-acts" style="margin-top:14px;flex-wrap:wrap"><button class="mini" type="button" data-d="no">Cancel</button><a class="mini" href="#/players" data-d2="close">Open the category check</a><button class="mini solid-danger" type="button" data-d2="force-start">Start anyway</button></div>`);
     },

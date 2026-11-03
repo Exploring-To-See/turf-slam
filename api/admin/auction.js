@@ -44,7 +44,7 @@ const actions = {
     const st = await one(sb.from("ts_state").select("current_player_id").eq("id", 1).single());
     if (st.current_player_id) throw bad("A player is still under the hammer. Mark them sold or unsold first.");
     const eligible = await one(sb.from("ts_player_cards").select("id, category, status, queue_pos")
-      .in("status", ["pool", "unsold"]).in("category", ["A", "B"]).eq("payment_status", "verified"));
+      .in("status", ["pool", "unsold"]).in("category", ["A", "B"]));
     const queued = eligible.filter((p) => p.queue_pos != null).sort((x, y) => x.queue_pos - y.queue_pos);
     if (queued.length) { await one(sb.rpc("ts_open_lot", { p_player: queued[0].id })); return; }
     const cat = ["A", "B"].includes(b.category) ? b.category : null;
@@ -56,10 +56,9 @@ const actions = {
   },
   async queue_add(sb, b) {
     if (!UUID_RE.test(String(b.player_id))) throw bad("Bad request.");
-    const p = await one(sb.from("ts_player_cards").select("name, category, status, queue_pos, payment_status").eq("id", b.player_id).single());
+    const p = await one(sb.from("ts_player_cards").select("name, category, status, queue_pos").eq("id", b.player_id).single());
     if (!["pool", "unsold"].includes(p.status)) throw bad(`${p.name} is not available for the auction.`);
     if (!["A", "B"].includes(p.category)) throw bad(`Category ${p.category} players are not auctioned.`);
-    if (p.payment_status !== "verified") throw bad(`${p.name} does not have payment marked received.`);
     if (p.queue_pos != null) return;
     const [last] = await one(sb.from("ts_players").select("queue_pos").not("queue_pos", "is", null).order("queue_pos", { ascending: false }).limit(1));
     await one(sb.from("ts_players").update({ queue_pos: (last ? last.queue_pos : 0) + 1 }).eq("id", b.player_id));
@@ -69,12 +68,19 @@ const actions = {
     await one(sb.from("ts_players").update({ queue_pos: null }).eq("id", b.player_id));
   },
   async queue_clear(sb) { await one(sb.from("ts_players").update({ queue_pos: null }).not("queue_pos", "is", null)); },
-  // Apply the official category list: add paid registrations that are on it, set their categories,
+  // Apply the official category list: add registrations that are on it, set their categories,
   // and make every retained player who is not category A an A+.
   async apply_roster(sb) {
     const regs = await one(sb.from("registrations").select("id, name, payment_status").eq("status", "received").limit(2000));
     const players = await one(sb.from("ts_players").select("id, name, category, status, registration_id"));
     const c = roster.check(regs, players);
+    // payment status does not matter for the auction: listed players with unconfirmed payment come in too
+    const byReg = new Map(players.filter((p) => p.registration_id).map((p) => [p.registration_id, p]));
+    for (const m of c.unpaid) {
+      const p = byReg.get(m.reg.id);
+      if (!p) await one(sb.rpc("ts_import_one", { p_reg: m.reg.id, p_category: m.category }));
+      else if (p.category !== m.category && ["pool", "unsold"].includes(p.status)) await one(sb.rpc("ts_set_category", { p_player: p.id, p_category: m.category }));
+    }
     for (const m of c.notImported) await one(sb.rpc("ts_import_one", { p_reg: m.reg.id, p_category: m.category }));
     for (const m of c.wrongCat) if (["pool", "unsold"].includes(m.player.status)) await one(sb.rpc("ts_set_category", { p_player: m.player.id, p_category: m.category }));
     for (const p of c.retainedToFix) await one(sb.rpc("ts_set_category", { p_player: p.id, p_category: "A+" }));
