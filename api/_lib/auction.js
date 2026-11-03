@@ -1,7 +1,7 @@
 const { db } = require("./supabase");
 
-const PLAYER_COLS = "id, serial, name, role, age, tournaments_played, category, status, team_id, price, sold_at, has_photo";
-const PLAYER_COLS_ADMIN = PLAYER_COLS + ", notes, registration_id, registration_reference, queue_pos, payment_status";
+const PLAYER_COLS = "id, serial, name, role, age, tournaments_played, category, status, team_id, price, sold_at, has_photo, payment_status";
+const PLAYER_COLS_ADMIN = PLAYER_COLS + ", notes, registration_id, registration_reference, queue_pos";
 
 async function one(q) {
   const { data, error } = await q;
@@ -38,7 +38,9 @@ async function snapshot({ admin = false } = {}) {
     categories,
     state: { status: state.status, player_id: state.current_player_id, price: Number(state.current_price), leading_team_id: state.leading_team_id, bids },
     teams: teams.map((t) => ({ ...t, purse_total: Number(t.purse_total), spent: Number(t.spent), purse_left: Number(t.purse_left), max_bid: Number(t.max_bid) })),
-    players: players.map((p) => ({ ...p, price: p.price == null ? null : Number(p.price) })),
+    // in_list: only players whose payment is marked received are in the auction player list (retained players of a
+    // team still show on that team). It follows the live payment status, so it changes the moment the status does.
+    players: players.map(({ payment_status, ...p }) => ({ ...p, in_list: payment_status === "verified", ...(admin ? { payment_status } : {}), price: p.price == null ? null : Number(p.price) })),
     events,
   };
 

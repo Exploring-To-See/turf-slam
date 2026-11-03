@@ -127,7 +127,7 @@
     $("#pill-regs").textContent = regs ?? ""; $("#pill-regs").hidden = regs == null;
     const st = A.state; const lp = $("#pill-live");
     lp.textContent = st.status === "live" ? "LIVE" : st.status === "paused" ? "II" : ""; lp.classList.toggle("hot", st.status === "live"); lp.hidden = st.status === "idle";
-    $("#pill-players").textContent = A.players.length;
+    $("#pill-players").textContent = A.players.filter((p) => p.in_list).length;
   }
 
   const team = (id) => A.teams.find((t) => t.id === id);
@@ -347,7 +347,7 @@
 
   const inView = () => {
     const q = ui.pq.trim().toLowerCase();
-    return A.players.filter((p) => (ui.pf === "all" || p.status === ui.pf || (ui.pf === "flag" && flagOf(p))) && (ui.pc === "all" || (ui.pc === "none" ? !p.category : p.category === ui.pc)) && (!q || `${p.name} ${p.role || ""}`.toLowerCase().includes(q)));
+    return A.players.filter((p) => p.in_list && (ui.pf === "all" || p.status === ui.pf || (ui.pf === "flag" && flagOf(p))) && (ui.pc === "all" || (ui.pc === "none" ? !p.category : p.category === ui.pc)) && (!q || `${p.name} ${p.role || ""}`.toLowerCase().includes(q)));
   };
   function bulkBar(rows) {
     const n = ui.sel.size, usable = rows.filter((p) => ["pool", "unsold"].includes(p.status));
@@ -359,10 +359,10 @@
   }
   function players() {
     const q = ui.pq.trim().toLowerCase();
-    const rows = A.players.filter((p) => (ui.pf === "all" || p.status === ui.pf || (ui.pf === "flag" && flagOf(p))) && (ui.pc === "all" || (ui.pc === "none" ? !p.category : p.category === ui.pc)) && (!q || `${p.name} ${p.role || ""}`.toLowerCase().includes(q)));
+    const rows = A.players.filter((p) => p.in_list && (ui.pf === "all" || p.status === ui.pf || (ui.pf === "flag" && flagOf(p))) && (ui.pc === "all" || (ui.pc === "none" ? !p.category : p.category === ui.pc)) && (!q || `${p.name} ${p.role || ""}`.toLowerCase().includes(q)));
     const chip = (key, v, l) => `<button class="chip" type="button" data-act="pfilter" data-k="${key}" data-v="${v}" aria-pressed="${ui[key] === v}">${l}</button>`;
-    const cnt = (s) => A.players.filter((p) => p.status === s).length;
-    return head("Players", `${A.players.length} in the auction · ${cnt("pool")} to come · ${cnt("sold")} sold · ${cnt("retained")} retained · ${cnt("unsold")} unsold${A.players.filter((p) => !p.category).length ? ` · <b class="warnt">${A.players.filter((p) => !p.category).length} without a level</b>` : ""}`,
+    const cnt = (s) => A.players.filter((p) => p.in_list && p.status === s).length;
+    return head("Players", `${A.players.filter((p) => p.in_list).length} in the auction · ${cnt("pool")} to come · ${cnt("sold")} sold · ${cnt("retained")} retained · ${cnt("unsold")} unsold${A.players.filter((p) => p.in_list && !p.category).length ? ` · <b class="warnt">${A.players.filter((p) => p.in_list && !p.category).length} without a level</b>` : ""}`,
       `<button class="mini solid-danger" type="button" data-act="reset">Reset auction…</button>`) + rosterCard() + `
       <div class="toolbar"><label class="sr" for="pq">Search players</label><input class="input" id="pq" data-keep="pq" type="search" placeholder="Search name or role" value="${esc(ui.pq)}" autocomplete="off">
         <div class="chips" role="group" aria-label="Status">${chip("pf", "all", "All")}${chip("pf", "pool", "To come")}${chip("pf", "sold", "Sold")}${chip("pf", "retained", "Retained")}${chip("pf", "unsold", "Unsold")}${chip("pf", "flag", "Needs a look")}</div>
@@ -385,7 +385,7 @@
             <button class="mini" type="button" data-act="player-edit">Edit</button>
             <button class="mini danger" type="button" data-act="player-del" ${p.status === "live" ? "disabled" : ""}>Delete</button></div>
         </article>`;
-      }).join("") : `<div class="empty">${A.players.length ? "No players match these filters." : "No players yet. Players join this list automatically when their registration is marked Payment received."}</div>`}</div>`;
+      }).join("") : `<div class="empty">${A.players.some((p) => p.in_list) ? "No players match these filters." : "No players yet. Players join this list automatically when their registration is marked Payment received."}</div>`}</div>`;
   }
   // why a player row is highlighted (empty when all is well)
   function flagOf(p) {

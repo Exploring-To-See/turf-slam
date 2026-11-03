@@ -58,7 +58,7 @@
     renderFeed();
     renderRules();
     $("#n-teams").textContent = snap.teams.length;
-    $("#n-players").textContent = snap.players.length;
+    $("#n-players").textContent = snap.players.filter((p) => p.in_list).length;
     $("#n-results").textContent = snap.events.filter((e) => ["sold", "unsold"].includes(e.kind)).length;
     placeSlider();
   }
@@ -105,14 +105,14 @@
   const AVAIL = (p) => (p.status === "pool" || p.status === "live") && cat(p.category).base_price;
   function renderPlayers() {
     const q = query.trim().toLowerCase();
-    const rows = snap.players.filter((p) => {
+    const rows = snap.players.filter((p) => p.in_list).filter((p) => {
       if (filter === "available" && !AVAIL(p)) return false;
       if (["sold", "unsold", "retained"].includes(filter) && p.status !== filter) return false;
       if (["A", "B"].includes(filter) && p.category !== filter) return false;
       return !q || `${p.name} ${p.role || ""}`.toLowerCase().includes(q);
     }).sort((a, b) => (b.status === "live") - (a.status === "live") || a.serial - b.serial);
     const left = snap.players.filter(AVAIL).length;
-    $("#players-note").textContent = `${snap.players.length} players · ${left} still available`;
+    $("#players-note").textContent = `${snap.players.filter((p) => p.in_list).length} players · ${left} still available`;
     $("#plist").innerHTML = rows.length ? rows.map((p, n) => {
       const t = p.team_id ? team(p.team_id) : null, c = cat(p.category);
       const stat = p.status === "sold" || p.status === "retained"
@@ -121,7 +121,7 @@
       return `<li class="prow${p.status === "live" ? " live" : ""}${seen.players ? " static" : ""}" style="--n:${Math.min(n, 24)}">${avatar(p)}
         <div class="pmain"><b>${esc(p.name)}</b><small><span class="cat-dot">${esc(p.category || "–")}</span>${esc(p.role || "Player")}${p.age ? ` · ${esc(p.age)} yrs` : ""}</small></div>
         <div class="pstat">${stat}</div></li>`;
-    }).join("") : `<li class="empty-note" style="grid-column:1/-1">${snap.players.length ? "No players match." : "The player list will appear here once it's published."}</li>`;
+    }).join("") : `<li class="empty-note" style="grid-column:1/-1">${snap.players.some((p) => p.in_list) ? "No players match." : "The player list will appear here once it's published."}</li>`;
     seen.players = true;
   }
 
