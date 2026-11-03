@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "description": "The Turf Slam player registration (static page + Vercel functions + Supabase)",
-  "engines": { "node": ">=20" },
-  "dependencies": { "@supabase/supabase-js": "^2.45.0" }
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "pdfkit": "^0.20.2"
+  }
 }

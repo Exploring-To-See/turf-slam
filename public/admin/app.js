@@ -206,7 +206,7 @@
     const v = regsVisible();
     const chip = (f, label) => `<button class="chip" type="button" data-act="regfilter" data-v="${f}" aria-pressed="${ui.regFilter === f}">${label}</button>`;
     return head("Registrations", "New entries appear here live. Confirm payments, edit details or remove entries.",
-      `<button class="mini" data-act="csv" type="button">Export CSV</button><button class="btn" data-act="reg-add" type="button">Add entry</button>`) + `
+      `<a class="mini" href="/api/admin/report" download>Download PDF</a><button class="mini" data-act="csv" type="button">Export CSV</button><button class="btn" data-act="reg-add" type="button">Add entry</button>`) + `
       <div class="toolbar">
         <label class="sr" for="regq">Search entries</label>
         <input class="input" id="regq" data-keep="regq" type="search" placeholder="Search name, phone, reference, role" autocomplete="off" value="${esc(ui.regQ)}">
@@ -363,7 +363,7 @@
     const chip = (key, v, l) => `<button class="chip" type="button" data-act="pfilter" data-k="${key}" data-v="${v}" aria-pressed="${ui[key] === v}">${l}</button>`;
     const cnt = (s) => A.players.filter((p) => p.in_list && p.status === s).length;
     return head("Players", `${A.players.filter((p) => p.in_list).length} in the auction · ${cnt("pool")} to come · ${cnt("sold")} sold · ${cnt("retained")} retained · ${cnt("unsold")} unsold${A.players.filter((p) => p.in_list && !p.category).length ? ` · <b class="warnt">${A.players.filter((p) => p.in_list && !p.category).length} without a level</b>` : ""}`,
-      `<button class="mini solid-danger" type="button" data-act="reset">Reset auction…</button>`) + rosterCard() + `
+      `<a class="mini" href="/api/admin/report" download>Download PDF</a><button class="mini solid-danger" type="button" data-act="reset">Reset auction…</button>`) + rosterCard() + `
       <div class="toolbar"><label class="sr" for="pq">Search players</label><input class="input" id="pq" data-keep="pq" type="search" placeholder="Search name or role" value="${esc(ui.pq)}" autocomplete="off">
         <div class="chips" role="group" aria-label="Status">${chip("pf", "all", "All")}${chip("pf", "pool", "To come")}${chip("pf", "sold", "Sold")}${chip("pf", "retained", "Retained")}${chip("pf", "unsold", "Unsold")}${chip("pf", "flag", "Needs a look")}</div>
         <div class="chips" role="group" aria-label="Category">${chip("pc", "all", "Any cat")}${chip("pc", "A+", "A+")}${chip("pc", "A", "A")}${chip("pc", "B", "B")}${chip("pc", "none", "Unassigned")}</div></div>
