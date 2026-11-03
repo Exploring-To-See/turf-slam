@@ -4,7 +4,7 @@ const { validateDetails, UUID_RE } = require("../_lib/validate");
 const { makeReference, send } = require("../_lib/http");
 
 const PAYMENT = ["awaiting_review", "verified", "due"];
-const COLS = "id, reference, status, payment_status, name, age, phone, role, jersey_size, tournaments_played, crichero_url, photo_path, payment_path, organiser_notes, source, created_at, completed_at, reviewed_at, updated_at";
+const COLS = "id, reference, status, payment_status, auction_category, name, age, phone, role, jersey_size, tournaments_played, crichero_url, photo_path, payment_path, organiser_notes, source, created_at, completed_at, reviewed_at, updated_at";
 
 // Registrations feed the auction (payment state, names), so tell auction screens to refresh: touching ts_settings
 // bumps ts_state.version through its trigger. Harmless if the auction tables are not set up yet.
@@ -61,6 +61,11 @@ module.exports = adminRoute(["GET", "POST", "PATCH", "DELETE"], async (req, res,
     if (!PAYMENT.includes(body.payment_status)) return send(res, 400, { ok: false, message: "Bad payment status." });
     patch.payment_status = body.payment_status;
     patch.reviewed_at = body.payment_status === "awaiting_review" ? null : new Date().toISOString();
+  }
+  if ("auction_category" in body) {
+    const c = body.auction_category === "" || body.auction_category == null ? null : body.auction_category;
+    if (c !== null && !["A+", "A", "B"].includes(c)) return send(res, 400, { ok: false, message: "Bad level." });
+    patch.auction_category = c;
   }
   if ("organiser_notes" in body) patch.organiser_notes = String(body.organiser_notes ?? "").slice(0, 1000) || null;
   if (body.details) {

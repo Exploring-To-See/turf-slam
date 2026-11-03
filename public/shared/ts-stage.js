@@ -116,7 +116,7 @@
     const recent = last && Date.now() - new Date(last.created_at).getTime() < 10 * 60 * 1000;
     const sold = snap.players.filter((x) => x.status === "sold").length;
     const nothing = (snap.settings && "started_at" in snap.settings) ? !snap.settings.started_at && !sold : !snap.events.length && !sold;
-    const left = snap.players.filter((x) => x.status === "pool" && snap.categories.find((c) => c.code === x.category).base_price).length;
+    const left = snap.players.filter((x) => x.status === "pool" && (snap.categories.find((c) => c.code === x.category) || {}).base_price).length;
     return `<div class="ts-idle ts-pitch">${marksHtml()}<div class="ts-orbit" aria-hidden="true"><i></i><b></b></div>
       <p class="ts-kicker">${nothing ? "Auction not started" : "Between players"}</p>
       <h2>${nothing ? "The auction starts soon" : "Next player coming up"}</h2>

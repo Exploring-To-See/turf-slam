@@ -314,3 +314,9 @@ dialog::backdrop { background: rgba(5, 20, 6, 0.72); }
 .bulkbar.on { border-style: solid; border-color: var(--lime); }
 .bulkbar .btns { margin-left: auto; }
 .selall { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
+
+/* ---------- level picker on registrations ---------- */
+.lvl { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.lvl .k { margin: 0; }
+.lvl.none .select { border-color: var(--amber); box-shadow: 0 0 0 1.5px rgba(255, 212, 121, 0.45); }
+.warnt { color: var(--amber); }

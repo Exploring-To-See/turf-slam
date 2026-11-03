@@ -45,7 +45,7 @@
   }
 
   const team = (id) => snap.teams.find((t) => t.id === id);
-  const cat = (code) => snap.categories.find((c) => c.code === code);
+  const cat = (code) => snap.categories.find((c) => c.code === code) || { code: "", label: "Unassigned", base_price: null, increment: null };
 
   // ---------- render ----------
   function render() {
@@ -119,7 +119,7 @@
         ? `<b class="num">${INR(p.price)}</b><small><span class="st ${p.status}">${p.status === "sold" ? "Sold" : "Retained"}</span>${t ? esc(t.name) : ""}</small>`
         : `<b class="num">${c.base_price ? INR(c.base_price) : "Retention only"}</b><small><span class="st ${p.status}">${p.status === "live" ? "Under hammer" : p.status === "unsold" ? "Unsold" : "Available"}</span></small>`;
       return `<li class="prow${p.status === "live" ? " live" : ""}${seen.players ? " static" : ""}" style="--n:${Math.min(n, 24)}">${avatar(p)}
-        <div class="pmain"><b>${esc(p.name)}</b><small><span class="cat-dot">${esc(p.category)}</span>${esc(p.role || "Player")}${p.age ? ` · ${esc(p.age)} yrs` : ""}</small></div>
+        <div class="pmain"><b>${esc(p.name)}</b><small><span class="cat-dot">${esc(p.category || "–")}</span>${esc(p.role || "Player")}${p.age ? ` · ${esc(p.age)} yrs` : ""}</small></div>
         <div class="pstat">${stat}</div></li>`;
     }).join("") : `<li class="empty-note" style="grid-column:1/-1">${snap.players.length ? "No players match." : "The player list will appear here once it's published."}</li>`;
     seen.players = true;

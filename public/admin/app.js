@@ -132,7 +132,10 @@
 
   const team = (id) => A.teams.find((t) => t.id === id);
   const player = (id) => A.players.find((p) => p.id === id);
-  const cat = (c) => A.categories.find((x) => x.code === c);
+  const NOLEVEL = { code: "", label: "Unassigned", base_price: null, increment: null, retention_value: null };
+  const cat = (c) => A.categories.find((x) => x.code === c) || NOLEVEL;
+  // <option>s for a level picker; "Unassigned" stays available so a player can be left for later
+  const levelOpts = (cur, label = (c) => "Level " + c.code) => `<option value="" ${cur ? "" : "selected"}>Unassigned</option>` + A.categories.map((c) => `<option value="${esc(c.code)}" ${c.code === cur ? "selected" : ""}>${esc(label(c))}</option>`).join("");
   const auctionable = (p) => !!cat(p.category).base_price;
   const RS = window.TSRoster;
   const paid = () => true;   // payment status never blocks a player from the auction
@@ -195,7 +198,7 @@
   // =====================================================================
   function regsVisible() {
     const q = ui.regQ.trim().toLowerCase();
-    return (R || []).filter((r) => (ui.regFilter === "all" || r.payment_status === ui.regFilter) &&
+    return (R || []).filter((r) => (ui.regFilter === "all" || (ui.regFilter === "nolevel" ? !r.auction_category : r.payment_status === ui.regFilter)) &&
       (!q || [r.name, r.phone, r.reference, r.role, r.jersey_size, r.tournaments_played].join(" ").toLowerCase().includes(q)));
   }
   function registrations() {
@@ -207,7 +210,7 @@
       <div class="toolbar">
         <label class="sr" for="regq">Search entries</label>
         <input class="input" id="regq" data-keep="regq" type="search" placeholder="Search name, phone, reference, role" autocomplete="off" value="${esc(ui.regQ)}">
-        <div class="chips" role="group" aria-label="Filter by payment">${chip("all", "All")}${chip("awaiting_review", "Awaiting")}${chip("verified", "Received")}${chip("due", "Due")}</div>
+        <div class="chips" role="group" aria-label="Filter by payment">${chip("all", "All")}${chip("awaiting_review", "Awaiting")}${chip("verified", "Received")}${chip("due", "Due")}${chip("nolevel", "No level")}</div>
       </div>
       <div class="list">${!R ? `<div class="empty">Loading…</div>` : v.length ? v.map((r) => {
         const ps = r.payment_status;
@@ -223,8 +226,9 @@
             <span><span class="k">Role</span> ${esc(r.role)} · <span class="k">Jersey</span> ${esc(r.jersey_size || "—")}</span></div>
           <div class="meta"><span><span class="k">Tournaments</span> ${esc(r.tournaments_played)}</span>${cric}</div>
           <div class="pay"><span class="badge b-${esc(ps)}">${esc(PAY[ps] || ps)}</span>
+            <div class="lvl${r.auction_category ? "" : " none"}"><label class="k" for="lvl-${esc(r.id)}">Level</label><select class="select sm" id="lvl-${esc(r.id)}" data-change="reg-cat" aria-label="Auction level for ${esc(r.name)}">${levelOpts(r.auction_category)}</select></div>
             <div class="btns"><button class="pay-btn rec" type="button" data-act="pay" data-v="verified" aria-pressed="${ps === "verified"}">Payment received</button><button class="pay-btn due" type="button" data-act="pay" data-v="due" aria-pressed="${ps === "due"}">Mark due</button></div>
-            <div class="btns"><button class="mini" type="button" data-act="reg-edit">Edit</button>${inAuction.has(r.id) ? `<span class="badge">In auction</span>` : `<button class="mini" type="button" data-act="reg-to-auction">Add to auction</button>`}<button class="mini danger" type="button" data-act="reg-del">Delete</button></div></div>
+            <div class="btns"><button class="mini" type="button" data-act="reg-edit">Edit</button>${inAuction.has(r.id) ? `<span class="badge b-sold">In auction</span>` : `<span class="badge" title="Joins the auction list when payment is marked received">${ps === "verified" ? "Joining…" : "Not in auction"}</span>`}<button class="mini danger" type="button" data-act="reg-del">Delete</button></div></div>
           ${r.organiser_notes ? `<div class="note">Note: ${esc(r.organiser_notes)}</div>` : ""}
         </article>`;
       }).join("") : `<div class="empty">${R.length ? "No entries match your search." : "No registrations yet."}</div>`}</div>`;
@@ -343,26 +347,26 @@
 
   const inView = () => {
     const q = ui.pq.trim().toLowerCase();
-    return A.players.filter((p) => (ui.pf === "all" || p.status === ui.pf || (ui.pf === "flag" && flagOf(p))) && (ui.pc === "all" || p.category === ui.pc) && (!q || `${p.name} ${p.role || ""}`.toLowerCase().includes(q)));
+    return A.players.filter((p) => (ui.pf === "all" || p.status === ui.pf || (ui.pf === "flag" && flagOf(p))) && (ui.pc === "all" || (ui.pc === "none" ? !p.category : p.category === ui.pc)) && (!q || `${p.name} ${p.role || ""}`.toLowerCase().includes(q)));
   };
   function bulkBar(rows) {
     const n = ui.sel.size, usable = rows.filter((p) => ["pool", "unsold"].includes(p.status));
     return `<div class="bulkbar${n ? " on" : ""}"><label class="selall"><input type="checkbox" data-selall ${usable.length && usable.every((p) => ui.sel.has(p.id)) ? "checked" : ""}> Select all shown</label>
       <span class="hint" style="margin:0">${n ? `${n} selected` : "Tick players to change their category together"}</span>
-      <span class="btns"><select class="select sm" id="bulk-cat" aria-label="New category">${A.categories.map((c) => `<option value="${esc(c.code)}">Cat ${esc(c.code)}</option>`).join("")}</select>
+      <span class="btns"><select class="select sm" id="bulk-cat" aria-label="New category">${levelOpts("", (c) => "Level " + c.code)}</select>
       <button class="mini primary" type="button" data-act="bulk-apply" ${n ? "" : "disabled"}>Set category</button>
       <button class="mini" type="button" data-act="bulk-clear" ${n ? "" : "disabled"}>Clear</button></span></div>`;
   }
   function players() {
     const q = ui.pq.trim().toLowerCase();
-    const rows = A.players.filter((p) => (ui.pf === "all" || p.status === ui.pf || (ui.pf === "flag" && flagOf(p))) && (ui.pc === "all" || p.category === ui.pc) && (!q || `${p.name} ${p.role || ""}`.toLowerCase().includes(q)));
+    const rows = A.players.filter((p) => (ui.pf === "all" || p.status === ui.pf || (ui.pf === "flag" && flagOf(p))) && (ui.pc === "all" || (ui.pc === "none" ? !p.category : p.category === ui.pc)) && (!q || `${p.name} ${p.role || ""}`.toLowerCase().includes(q)));
     const chip = (key, v, l) => `<button class="chip" type="button" data-act="pfilter" data-k="${key}" data-v="${v}" aria-pressed="${ui[key] === v}">${l}</button>`;
     const cnt = (s) => A.players.filter((p) => p.status === s).length;
-    return head("Players", `${A.players.length} in the auction · ${cnt("pool")} to come · ${cnt("sold")} sold · ${cnt("retained")} retained · ${cnt("unsold")} unsold`,
-      `<button class="mini solid-danger" type="button" data-act="reset">Reset auction…</button><button class="mini" type="button" data-act="import">Add registered players</button><button class="btn" type="button" data-act="player-add">Add player</button>`) + rosterCard() + `
+    return head("Players", `${A.players.length} in the auction · ${cnt("pool")} to come · ${cnt("sold")} sold · ${cnt("retained")} retained · ${cnt("unsold")} unsold${A.players.filter((p) => !p.category).length ? ` · <b class="warnt">${A.players.filter((p) => !p.category).length} without a level</b>` : ""}`,
+      `<button class="mini solid-danger" type="button" data-act="reset">Reset auction…</button>`) + rosterCard() + `
       <div class="toolbar"><label class="sr" for="pq">Search players</label><input class="input" id="pq" data-keep="pq" type="search" placeholder="Search name or role" value="${esc(ui.pq)}" autocomplete="off">
         <div class="chips" role="group" aria-label="Status">${chip("pf", "all", "All")}${chip("pf", "pool", "To come")}${chip("pf", "sold", "Sold")}${chip("pf", "retained", "Retained")}${chip("pf", "unsold", "Unsold")}${chip("pf", "flag", "Needs a look")}</div>
-        <div class="chips" role="group" aria-label="Category">${chip("pc", "all", "Any cat")}${chip("pc", "A+", "A+")}${chip("pc", "A", "A")}${chip("pc", "B", "B")}</div></div>
+        <div class="chips" role="group" aria-label="Category">${chip("pc", "all", "Any cat")}${chip("pc", "A+", "A+")}${chip("pc", "A", "A")}${chip("pc", "B", "B")}${chip("pc", "none", "Unassigned")}</div></div>
       ${bulkBar(rows)}
       <div class="list">${rows.length ? rows.map((p) => {
         const t = p.team_id ? team(p.team_id) : null, locked = ["live", "sold"].includes(p.status);
@@ -371,7 +375,7 @@
         return `<article class="prow${p.status === "live" ? " live" : ""}${flag ? " flag" : ""}" data-id="${esc(p.id)}">
           <div class="pid"><input class="selbox" type="checkbox" data-sel aria-label="Select ${esc(p.name)}" ${ui.sel.has(p.id) ? "checked" : ""}>${avatar(p)}<div><b>${esc(p.name)}</b><small>#${p.serial}${p.role ? " · " + esc(p.role) : ""}${p.age ? " · " + esc(p.age) + " yrs" : ""}${p.registration_reference ? " · " + esc(p.registration_reference) : " · added manually"}</small>
             <span class="flags">${p.status === "retained" ? "" : listBadge(p.name)}${p.status !== "retained" && !paid(p) ? `<span class="badge b-due">No payment</span>` : ""}${flag && flag !== "pay" && flag !== "unlisted" ? `<span class="badge b-awaiting_review">${esc(flag)}</span>` : ""}</span></div></div>
-          <div><label class="sr" for="cat-${esc(p.id)}">Category</label><select class="select sm" id="cat-${esc(p.id)}" data-change="player-cat" ${locked ? "disabled title=\"Revert the sale to change category\"" : ""}>${A.categories.map((c) => `<option value="${esc(c.code)}" ${c.code === p.category ? "selected" : ""}>Cat ${esc(c.code)}</option>`).join("")}</select></div>
+          <div><label class="sr" for="cat-${esc(p.id)}">Level</label><select class="select sm" id="cat-${esc(p.id)}" data-change="player-cat" ${locked ? "disabled title=\"Revert the sale to change category\"" : ""}>${levelOpts(p.category, (c) => "Level " + c.code)}</select></div>
           <div class="pstat"><span class="badge b-${esc(p.status)}">${{ pool: "To come", live: "Under hammer", sold: "Sold", unsold: "Unsold", retained: "Retained" }[p.status]}</span>${t ? `${teamChip(t)} <span class="money">${INR(p.price)}</span>` : `<span class="hint" style="margin:0">${auctionable(p) ? "Base " + INR(cat(p.category).base_price) : "Retention only"}</span>`}</div>
           <div class="btns">
             ${eligible(p) ? queueBtn(p) : ""}
@@ -381,10 +385,11 @@
             <button class="mini" type="button" data-act="player-edit">Edit</button>
             <button class="mini danger" type="button" data-act="player-del" ${p.status === "live" ? "disabled" : ""}>Delete</button></div>
         </article>`;
-      }).join("") : `<div class="empty">${A.players.length ? "No players match these filters." : "No players yet. Use “Apply list categories” or “Add registered players” to pull them in from the registration list."}</div>`}</div>`;
+      }).join("") : `<div class="empty">${A.players.length ? "No players match these filters." : "No players yet. Players join this list automatically when their registration is marked Payment received."}</div>`}</div>`;
   }
   // why a player row is highlighted (empty when all is well)
   function flagOf(p) {
+    if (!p.category) return "Needs a level";
     if (p.status === "retained") return p.category === "A" || p.category === "A+" ? "" : "Retained: becomes A+";
     if (!paid(p)) return "pay";
     const x = RS.listed(p.name);
@@ -521,11 +526,11 @@
 
   // ---- player add/edit ----
   function playerDialog(p) {
-    openDlg(`<form data-submit="player-save" data-id="${p ? esc(p.id) : ""}" novalidate><h2>${p ? "Edit player" : "Add player"}</h2><div class="fgrid" style="margin-top:12px">
+    openDlg(`<form data-submit="player-save" data-id="${p ? esc(p.id) : ""}" novalidate><h2>Edit player</h2><div class="fgrid" style="margin-top:12px">
       <div class="wide"><label class="label" for="p-name">Name</label><input class="input" id="p-name" data-k="name" maxlength="80" value="${esc(p ? p.name : "")}"></div>
       <div><label class="label" for="p-role">Role</label><select class="select" id="p-role" data-k="role"><option value="">Not set</option>${ROLES.map((x) => `<option ${p && p.role === x ? "selected" : ""}>${x}</option>`).join("")}</select></div>
       <div><label class="label" for="p-age">Age</label><input class="input" id="p-age" data-k="age" inputmode="numeric" maxlength="2" value="${esc(p && p.age ? p.age : "")}"></div>
-      <div><label class="label" for="p-cat">Category</label><select class="select" id="p-cat" data-k="category" ${p && ["live", "sold"].includes(p.status) ? "disabled" : ""}>${A.categories.map((c) => `<option value="${esc(c.code)}" ${(p ? p.category : "B") === c.code ? "selected" : ""}>${esc(c.label)}</option>`).join("")}</select></div>
+      <div><label class="label" for="p-cat">Category</label><select class="select" id="p-cat" data-k="category" ${p && ["live", "sold"].includes(p.status) ? "disabled" : ""}>${levelOpts(p ? p.category : "", (c) => c.label)}</select></div>
       <div class="wide"><label class="label" for="p-played">Tournaments played <span class="opt">(optional)</span></label><input class="input" id="p-played" data-k="tournaments_played" maxlength="300" value="${esc(p ? p.tournaments_played || "" : "")}"></div>
       <div class="wide"><label class="label" for="p-notes">Notes <span class="opt">(admin only)</span></label><input class="input" id="p-notes" data-k="notes" maxlength="500" value="${esc(p ? p.notes || "" : "")}"></div></div>
       <p class="form-err" id="p-err" role="alert" hidden style="margin-top:12px"></p>
@@ -601,7 +606,15 @@
     if ("sel" in n.dataset) { const id = n.closest("[data-id]").dataset.id; n.checked ? ui.sel.add(id) : ui.sel.delete(id); render(); return; }
     if ("selall" in n.dataset) { inView().filter((p) => ["pool", "unsold"].includes(p.status)).forEach((p) => (n.checked ? ui.sel.add(p.id) : ui.sel.delete(p.id))); render(); return; }
     const k = n.dataset.keep; if (k && !["regq", "pq", "pickq"].includes(k)) drafts[k] = n.value;
-    if (n.dataset.change === "player-cat") { const id = n.closest("[data-id]").dataset.id; await act("update_player", { id, category: n.value }, "Category updated"); render(); }
+    if (n.dataset.change === "reg-cat") {
+      const id = n.closest("[data-id]").dataset.id, r = R.find((x) => x.id === id); if (!r) return;
+      const prev = r.auction_category; r.auction_category = n.value || null;
+      const { data } = await post("/api/admin/registrations", { id, auction_category: n.value || null }, "PATCH");
+      if (!data.ok) { r.auction_category = prev; toast(data.message || "Couldn't set the level.", true); }
+      else { Object.assign(r, data.row); toast(n.value ? `${r.name} is level ${n.value}` : `${r.name} is unassigned`); }
+      render(); return;
+    }
+    if (n.dataset.change === "player-cat") { const id = n.closest("[data-id]").dataset.id; await act("update_player", { id, category: n.value }, n.value ? "Level updated" : "Level cleared"); render(); }
     if (n.dataset.change === "photos") { await act("update_settings", { show_photos: n.checked }, n.checked ? "Photos shown on the public page" : "Photos hidden on the public page"); }
   });
 

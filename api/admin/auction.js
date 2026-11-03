@@ -29,8 +29,9 @@ function playerFields(b, { partial }) {
   if (!partial || "age" in b) out.age = int(b.age, "Age", { min: 5, max: 99, optional: true });
   if (!partial || "tournaments_played" in b) out.tournaments_played = String(b.tournaments_played ?? "").trim().slice(0, 300) || null;
   if (!partial || "category" in b) {
-    if (!CATS.includes(b.category)) throw bad("Pick a category.");
-    out.category = b.category;
+    const c = b.category === "" || b.category == null ? null : b.category;   // null = unassigned, left for the admin to mark
+    if (c !== null && !CATS.includes(c)) throw bad("Pick a category.");
+    out.category = c;
   }
   if ("notes" in b) out.notes = String(b.notes ?? "").trim().slice(0, 500) || null;
   return out;
@@ -74,13 +75,8 @@ const actions = {
     const regs = await one(sb.from("registrations").select("id, name, payment_status").eq("status", "received").limit(2000));
     const players = await one(sb.from("ts_players").select("id, name, category, status, registration_id"));
     const c = roster.check(regs, players);
-    // payment status does not matter for the auction: listed players with unconfirmed payment come in too
-    const byReg = new Map(players.filter((p) => p.registration_id).map((p) => [p.registration_id, p]));
-    for (const m of c.unpaid) {
-      const p = byReg.get(m.reg.id);
-      if (!p) await one(sb.rpc("ts_import_one", { p_reg: m.reg.id, p_category: m.category }));
-      else if (p.category !== m.category && ["pool", "unsold"].includes(p.status)) await one(sb.rpc("ts_set_category", { p_player: p.id, p_category: m.category }));
-    }
+    // listed registrations whose payment is not received yet keep their level, so they arrive with it once paid
+    for (const m of c.unpaid) await one(sb.rpc("ts_import_one", { p_reg: m.reg.id, p_category: m.category }));
     for (const m of c.notImported) await one(sb.rpc("ts_import_one", { p_reg: m.reg.id, p_category: m.category }));
     for (const m of c.wrongCat) if (["pool", "unsold"].includes(m.player.status)) await one(sb.rpc("ts_set_category", { p_player: m.player.id, p_category: m.category }));
     for (const p of c.retainedToFix) await one(sb.rpc("ts_set_category", { p_player: p.id, p_category: "A+" }));
@@ -101,28 +97,35 @@ const actions = {
   async import(sb, b) {
     const ids = Array.isArray(b.registration_ids) ? b.registration_ids.filter((x) => UUID_RE.test(String(x))) : [];
     if (!ids.length) throw bad("Select at least one registered player.");
-    if (!CATS.includes(b.category)) throw bad("Pick a category for the imported players.");
-    await one(sb.rpc("ts_import_registrations", { p_ids: ids, p_category: b.category }));
+    const category = b.category === "" || b.category == null ? null : b.category;
+    if (category !== null && !CATS.includes(category)) throw bad("Pick a category for the imported players.");
+    // only registrations with payment received become auction players; the others just keep the level for later
+    await one(sb.rpc("ts_import_registrations", { p_ids: ids, p_category: category }));
   },
   // Set the category of many players at once. Players who are live / sold / retained are left alone.
   async bulk_category(sb, b) {
     const ids = Array.isArray(b.ids) ? b.ids.filter((x) => UUID_RE.test(String(x))) : [];
     if (!ids.length) throw bad("Select at least one player.");
-    if (!CATS.includes(b.category)) throw bad("Pick a category.");
+    const category = b.category === "" || b.category == null ? null : b.category;
+    if (category !== null && !CATS.includes(category)) throw bad("Pick a category.");
     const rows = await one(sb.from("ts_players").select("id, status").in("id", ids));
     const ok = rows.filter((r) => ["pool", "unsold"].includes(r.status)).map((r) => r.id);
     if (!ok.length) throw bad("Those players are on the block, sold or retained. Revert them to the pool first.");
-    await one(sb.from("ts_players").update({ category: b.category, updated_at: new Date().toISOString() }).in("id", ok));
+    await one(sb.from("ts_players").update({ category, updated_at: new Date().toISOString() }).in("id", ok));
     const skipped = ids.length - ok.length;
-    return `${ok.length} player${ok.length === 1 ? "" : "s"} moved to category ${b.category}` + (skipped ? `, ${skipped} skipped (on the block, sold or retained)` : "");
+    return `${ok.length} player${ok.length === 1 ? "" : "s"} ${category ? `moved to category ${category}` : "set to unassigned"}` + (skipped ? `, ${skipped} skipped (on the block, sold or retained)` : "");
   },
-  async add_player(sb, b) { await one(sb.from("ts_players").insert(playerFields(b, { partial: false }))); },
   async update_player(sb, b) {
     if (!UUID_RE.test(String(b.id))) throw bad("Bad request.");
     const f = playerFields(b, { partial: true });
     const cur = await one(sb.from("ts_players").select("status, category").eq("id", b.id).single());
     // category goes through the database so a retained player's retention value follows it
-    if ("category" in f && f.category !== cur.category) await one(sb.rpc("ts_set_category", { p_player: b.id, p_category: f.category }));
+    if ("category" in f && f.category !== cur.category) {
+      if (f.category === null) {
+        if (["live", "sold", "retained"].includes(cur.status)) throw bad(`A player who is ${cur.status} must keep a level.`);
+        await one(sb.from("ts_players").update({ category: null, queue_pos: null, updated_at: new Date().toISOString() }).eq("id", b.id));
+      } else await one(sb.rpc("ts_set_category", { p_player: b.id, p_category: f.category }));
+    }
     delete f.category;
     if (Object.keys(f).length) await one(sb.from("ts_players").update({ ...f, updated_at: new Date().toISOString() }).eq("id", b.id));
   },

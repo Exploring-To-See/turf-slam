@@ -44,7 +44,7 @@ async function snapshot({ admin = false } = {}) {
 
   if (admin) {
     const regs = await one(sb.from("registrations")
-      .select("id, reference, name, role, age, tournaments_played, payment_status, completed_at, photo_path")
+      .select("id, reference, name, role, age, tournaments_played, payment_status, auction_category, completed_at, photo_path")
       .eq("status", "received").order("completed_at", { ascending: false }).limit(2000));
     const imported = new Set(players.map((p) => p.registration_id).filter(Boolean));
     snap.registrations = regs.map((r) => ({ ...r, has_photo: !!r.photo_path, photo_path: undefined, imported: imported.has(r.id) }));
