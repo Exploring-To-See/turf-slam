@@ -137,21 +137,9 @@
   // <option>s for a level picker; "Unassigned" stays available so a player can be left for later
   const levelOpts = (cur, label = (c) => "Level " + c.code) => `<option value="" ${cur ? "" : "selected"}>Unassigned</option>` + A.categories.map((c) => `<option value="${esc(c.code)}" ${c.code === cur ? "selected" : ""}>${esc(label(c))}</option>`).join("");
   const auctionable = (p) => !!cat(p.category).base_price;
-  const RS = window.TSRoster;
   const paid = () => true;   // payment status never blocks a player from the auction
   const eligible = (p) => (p.status === "pool" || p.status === "unsold") && auctionable(p) && paid(p);   // can go under the hammer
-  const queue = () => A.players.filter((p) => p.queue_pos != null && eligible(p)).sort((a, b) => a.queue_pos - b.queue_pos);
   const started = () => !!(A.settings && A.settings.started_at);
-  let rcCache = null;
-  function rcheck() {   // the official category list vs registrations and auction players (cached per snapshot)
-    const regs = R || A.registrations || [];   // R is polled live, so payment changes show at once
-    if (!rcCache || rcCache.a !== A || rcCache.r !== regs) rcCache = { a: A, r: regs, c: RS.check(regs, A.players) };
-    return rcCache.c;
-  }
-  const listBadge = (name) => { const x = RS.listed(name); return x ? `<span class="badge b-list">List ${esc(x.category)}</span>` : `<span class="badge b-unlisted">Not on list</span>`; };
-  const queueBtn = (p) => p.queue_pos != null
-    ? `<span class="qtag">Queued #${queue().findIndex((q) => q.id === p.id) + 1}</span><button class="mini" type="button" data-act="queue-remove">Remove</button>`
-    : `<button class="mini primary" type="button" data-act="queue-add">Add to queue</button>`;
   const avatar = (p) => `<div class="av"><span aria-hidden="true">${esc(initials(p.name))}</span>${p.has_photo ? `<img src="/api/auction/state?photo=${esc(p.id)}" alt="" loading="lazy" onerror="this.remove()">` : ""}</div>`;
   const teamChip = (t) => (t ? `<span class="tm"><i class="swatch" style="--c:${esc(t.color)}"></i>${esc(t.name)}</span>` : "");
   const head = (title, sub, acts = "") => `<div class="page-h"><div><h1>${esc(title)}</h1>${sub ? `<p>${sub}</p>` : ""}</div><div class="acts">${acts}</div></div>`;
@@ -215,8 +203,8 @@
       <div class="list">${!R ? `<div class="empty">Loading…</div>` : v.length ? v.map((r) => {
         const ps = r.payment_status;
         const cric = r.crichero_url ? `<a href="${esc(r.crichero_url)}" target="_blank" rel="noopener noreferrer">CricHeroes profile</a>` : "";
-        return `<article class="row s-${esc(ps)}${freshRegs.has(r.id) ? " fresh" : ""}${!RS.listed(r.name) && ps === "verified" ? " flag" : ""}" data-id="${esc(r.id)}">
-          <div><div class="who-name">${esc(r.name)} ${listBadge(r.name)}</div>
+        return `<article class="row s-${esc(ps)}${freshRegs.has(r.id) ? " fresh" : ""}${!r.auction_category && ps === "verified" ? " flag" : ""}" data-id="${esc(r.id)}">
+          <div><div class="who-name">${esc(r.name)}</div>
             <span class="ref"><code>${esc(r.reference)}</code>${r.source === "admin" ? '<span class="src">added by admin</span>' : ""} · ${esc(when(r.completed_at))}</span>
             <div class="files">
               <button class="mini" type="button" data-act="img" data-kind="photo" ${r.photo_path ? "" : "disabled"}>Photo</button>
@@ -260,7 +248,7 @@
           </div></div>`;
     } else {
       blockHtml = `<div class="card-h"><h2>Under the hammer</h2><span class="btns"><span class="badge b-idle">${started() ? "Idle" : "Not started"}</span><button class="mini" type="button" data-act="fs">Full screen</button></span></div>
-        <div class="empty">${started() ? "Nobody under the hammer. Press <b>Bring player</b> for the next one in the queue, or a random player if the queue is empty." : "The auction has not started. Press <b>Start auction</b> above when everyone is ready."}</div>`;
+        <div class="empty">${started() ? "Nobody under the hammer. Press <b>Bring player</b> for a random one, or pick a player from the list." : "The auction has not started. Press <b>Start auction</b> above when everyone is ready."}</div>`;
     }
 
     const teamBtns = A.teams.map((t, i) => {
@@ -278,9 +266,8 @@
     const avail = allElig.filter((x) => (ui.pickSt === "all" || x.status === ui.pickSt) && (ui.pickCat === "any" || x.category === ui.pickCat) && (!q || `${x.name} ${x.role || ""}`.toLowerCase().includes(q)));
     const nUnsold = allElig.filter((x) => x.status === "unsold").length;
     const blocked = A.players.filter((x) => (x.status === "pool" || x.status === "unsold") && auctionable(x) && !paid(x)).length;
-    const qd = queue();
     const pool = allElig.filter((x) => x.status === "pool" && (ui.pickCat === "any" || x.category === ui.pickCat)).length;
-    const nextLine = qd.length ? `Next: <b>${esc(qd[0].name)}</b> from the queue` : allElig.length ? `Queue empty: a random ${ui.pickCat === "any" ? "" : "category " + ui.pickCat + " "}player${pool ? "" : " (from the unsold list)"}` : "No players left";
+    const nextLine = allElig.length ? `A random ${ui.pickCat === "any" ? "" : "category " + ui.pickCat + " "}player${pool ? "" : " from the unsold list"}, or pick one below.` : "No players left";
     const segSt = (v, l) => `<button type="button" data-act="pickst" data-v="${v}" aria-pressed="${ui.pickSt === v}">${l}</button>`;
     const seg = (v, l) => `<button type="button" data-act="pickcat" data-v="${v}" aria-pressed="${ui.pickCat === v}">${l}</button>`;
     const bringOff = !started() || !!p || !allElig.length;
@@ -299,14 +286,12 @@
             <div class="seg" role="group" aria-label="Category for a random player">${seg("any", "Any")}${seg("A", "A")}${seg("B", "B")}</div></div>
           <div class="bring"><button class="btn big" type="button" data-act="bring" ${bringOff ? "disabled" : ""}>Bring player</button>
             <p class="hint" style="margin:0">${!started() ? "Start the auction first." : p ? "Sell or mark the current player unsold first." : nextLine}</p></div>
-          <div class="queue"><div class="card-h" style="margin:14px 0 6px"><h3 class="label" style="margin:0">Queue (${qd.length})</h3>${qd.length ? `<button class="mini" type="button" data-act="queue-clear">Clear queue</button>` : ""}</div>
-            ${qd.length ? `<ol class="qlist">${qd.map((x, i) => `<li data-id="${esc(x.id)}"><span class="qn">${i + 1}</span><span><b>${esc(x.name)}</b><small>Cat ${esc(x.category)}${x.role ? " · " + esc(x.role) : ""}</small></span><button class="mini" type="button" data-act="queue-remove">Remove</button></li>`).join("")}</ol>` : `<p class="hint" style="margin:0">Nobody queued. Use <b>Add to queue</b> below to line players up; otherwise players come at random.</p>`}</div>
           <label class="sr" for="pickq">Search players</label>
           <input class="input sm" id="pickq" data-keep="pickq" type="search" placeholder="Search the ${allElig.length} players who can be auctioned" value="${esc(ui.pickQ)}" style="margin-top:12px" autocomplete="off">
           <div class="seg" role="group" aria-label="Show players" style="margin-top:10px">${segSt("all", `All (${allElig.length})`)}${segSt("pool", `Pool (${allElig.length - nUnsold})`)}${segSt("unsold", `Unsold (${nUnsold})`)}</div>
           ${nUnsold ? `<p class="hint">${nUnsold} unsold player${nUnsold === 1 ? "" : "s"} can be brought back under the hammer.</p>` : ""}
           ${blocked ? `<p class="hint warn">${blocked} player${blocked === 1 ? "" : "s"} in the pool without payment received ${blocked === 1 ? "is" : "are"} left out of the auction.</p>` : ""}
-          <ul class="picklist">${avail.slice(0, 80).map((x) => `<li class="pick" data-id="${esc(x.id)}">${avatar(x)}<span><b>${esc(x.name)}</b><small>#${x.serial} · Cat ${esc(x.category)}${x.role ? " · " + esc(x.role) : ""}${x.status === "unsold" ? " · unsold" : ""}</small></span><span class="btns"><button class="mini primary" type="button" data-act="bring-now" ${bringOff ? "disabled" : ""}>Bring now</button>${queueBtn(x)}</span></li>`).join("") || `<li class="hint">${A.players.length ? "No players match." : "No players yet. Add them on the Players page."}</li>`}</ul></section>
+          <ul class="picklist">${avail.slice(0, 80).map((x) => `<li class="pick" data-id="${esc(x.id)}">${avatar(x)}<span><b>${esc(x.name)}</b><small>#${x.serial} · Cat ${esc(x.category)}${x.role ? " · " + esc(x.role) : ""}${x.status === "unsold" ? " · unsold" : ""}</small></span><span class="btns"><button class="mini primary" type="button" data-act="bring-now" ${bringOff ? "disabled" : ""}>Bring now</button></span></li>`).join("") || `<li class="hint">${A.players.length ? "No players match." : "No players yet. Add them on the Players page."}</li>`}</ul></section>
         <section class="card"><div class="card-h"><h2>Activity</h2></div>
           <ul class="log">${A.events.slice(0, 14).map((e) => `<li><span class="k ${esc(e.kind)}">${esc(evLabel(e.kind))}</span><span>${esc(evText(e))}</span><time>${esc(clock(e.created_at))}</time></li>`).join("") || `<li><span></span><span>Nothing yet.</span><span></span></li>`}</ul></section>
       </div>`;
@@ -321,32 +306,6 @@
   // =====================================================================
   // PLAYERS
   // =====================================================================
-  // The official A / B list checked against the registrations: what matches, what to fix by hand, what "Apply" will do.
-  function rosterCard() {
-    const c = rcheck(), fixable = c.notImported.length + c.wrongCat.length + c.retainedToFix.length;
-    const hand = c.missing.length + c.unpaid.length + c.unlisted.length + c.dupes.length;
-    const nm = (n) => `<b>${esc(n)}</b>`;
-    const hint = (arr, pre) => (arr && arr.length ? ` <small>${pre} ${arr.map(esc).join(" or ")}?</small>` : "");
-    const group = (cls, title, note, rows) => rows.length ? `<details class="rgroup ${cls}" ${cls === "info" ? "" : "open"}><summary><span class="rcount">${rows.length}</span>${title}</summary><p class="hint">${note}</p><ul>${rows.join("")}</ul></details>` : "";
-    return `<section class="card roster" aria-labelledby="roster-h">
-      <div class="card-h"><h2 id="roster-h">Category list check</h2><button class="btn" type="button" data-act="apply-roster" ${fixable ? "" : "disabled"}>Apply list categories${fixable ? ` (${fixable})` : ""}</button></div>
-      <div class="stats">
-        <div class="stat"><b>${c.total}</b><span>On the list (${RS.ROSTER.A.length} A · ${RS.ROSTER.B.length} B)</span></div>
-        <div class="stat ${c.paid === c.total ? "ok" : "due"}"><b>${c.paid}</b><span>Registrations with payment received</span></div>
-        <div class="stat ok"><b>${c.matched.length}</b><span>On the list and paid</span></div>
-        <div class="stat ${hand ? "due" : "ok"}"><b>${hand}</b><span>To sort out by hand</span></div>
-      </div>
-      ${hand || fixable ? "" : `<p class="hint">Everything matches the list.</p>`}
-      ${group("bad", "On the list, but not found in the registrations", "Usually a spelling difference. Edit the registration name to match the list (or add the entry).", c.missing.map((x) => `<li>${nm(x.name)} <span class="badge">Cat ${x.category}</span>${hint(x.near, "Registered as")}</li>`))}
-      ${group("warn", "On the list, payment not yet confirmed", "Payment does not block the auction. Apply list categories adds them to the pool.", c.unpaid.map((x) => `<li>${nm(x.name)} <span class="badge">Cat ${x.category}</span> <span class="badge b-${esc(x.reg.payment_status)}">${esc(PAY[x.reg.payment_status] || x.reg.payment_status)}</span></li>`))}
-      ${group("warn", "Payment received, but not on the list", "These have no category from the list. Fix the name if it is a spelling difference, or set the category by hand.", c.unlisted.map((x) => `<li>${nm(x.reg.name)}${hint(x.near, "On the list as")}</li>`))}
-      ${group("warn", "Registered more than once with payment received", "Delete the extra entry so the player is counted once.", c.dupes.map((x) => `<li>${nm(x.name)} <small>${x.regs.map((r) => esc(r.reference)).join(", ")}</small></li>`))}
-      ${group("info", "Not in the auction yet", "Apply adds them with their list category.", c.notImported.map((x) => `<li>${nm(x.name)} <span class="badge">Cat ${x.category}</span></li>`))}
-      ${group("info", "Category differs from the list", "Apply changes them to the list category.", c.wrongCat.map((x) => `<li>${nm(x.name)} <small>Cat ${esc(x.player.category)} → ${x.category}${["pool", "unsold"].includes(x.player.status) ? "" : " (locked while " + esc(x.player.status) + ")"}</small></li>`))}
-      ${group("info", "Retained players that become A+", "Retained players marked A stay A; every other retained player is A+. Apply updates them and their retention value.", c.retainedToFix.map((x) => `<li>${nm(x.name)} <small>Cat ${esc(x.category)} → A+</small></li>`))}
-    </section>`;
-  }
-
   const inView = () => {
     const q = ui.pq.trim().toLowerCase();
     return A.players.filter((p) => p.in_list && (ui.pf === "all" || p.status === ui.pf || (ui.pf === "flag" && flagOf(p))) && (ui.pc === "all" || (ui.pc === "none" ? !p.category : p.category === ui.pc)) && (!q || `${p.name} ${p.role || ""}`.toLowerCase().includes(q)));
@@ -365,7 +324,7 @@
     const chip = (key, v, l) => `<button class="chip" type="button" data-act="pfilter" data-k="${key}" data-v="${v}" aria-pressed="${ui[key] === v}">${l}</button>`;
     const cnt = (s) => A.players.filter((p) => p.in_list && p.status === s).length;
     return head("Players", `${A.players.filter((p) => p.in_list).length} in the auction · ${cnt("pool")} to come · ${cnt("sold")} sold · ${cnt("retained")} retained · ${cnt("unsold")} unsold${A.players.filter((p) => p.in_list && !p.category).length ? ` · <b class="warnt">${A.players.filter((p) => p.in_list && !p.category).length} without a level</b>` : ""}`,
-      `<a class="mini" href="/api/admin/report" download>Download PDF</a><button class="mini solid-danger" type="button" data-act="reset">Reset auction…</button>`) + rosterCard() + `
+      `<a class="mini" href="/api/admin/report" download>Download PDF</a><button class="mini solid-danger" type="button" data-act="reset">Reset auction…</button>`) + `
       <div class="toolbar"><label class="sr" for="pq">Search players</label><input class="input" id="pq" data-keep="pq" type="search" placeholder="Search name or role" value="${esc(ui.pq)}" autocomplete="off">
         <div class="chips" role="group" aria-label="Status">${chip("pf", "all", "All")}${chip("pf", "pool", "To come")}${chip("pf", "sold", "Sold")}${chip("pf", "retained", "Retained")}${chip("pf", "unsold", "Unsold")}${chip("pf", "flag", "Needs a look")}</div>
         <div class="chips" role="group" aria-label="Category">${chip("pc", "all", "Any cat")}${chip("pc", "A+", "A+")}${chip("pc", "A", "A")}${chip("pc", "B", "B")}${chip("pc", "none", "Unassigned")}</div></div>
@@ -376,28 +335,21 @@
         const flag = flagOf(p);
         return `<article class="prow${p.status === "live" ? " live" : ""}${flag ? " flag" : ""}" data-id="${esc(p.id)}">
           <div class="pid"><input class="selbox" type="checkbox" data-sel aria-label="Select ${esc(p.name)}" ${ui.sel.has(p.id) ? "checked" : ""}>${avatar(p)}<div><b>${esc(p.name)}</b><small>#${p.serial}${p.role ? " · " + esc(p.role) : ""}${p.age ? " · " + esc(p.age) + " yrs" : ""}${p.registration_reference ? " · " + esc(p.registration_reference) : " · added manually"}</small>
-            <span class="flags">${p.status === "retained" ? "" : listBadge(p.name)}${p.status !== "retained" && !paid(p) ? `<span class="badge b-due">No payment</span>` : ""}${flag && flag !== "pay" && flag !== "unlisted" ? `<span class="badge b-awaiting_review">${esc(flag)}</span>` : ""}</span></div></div>
+            <span class="flags">${flag ? `<span class="badge b-awaiting_review">${esc(flag)}</span>` : ""}</span></div></div>
           <div><label class="sr" for="cat-${esc(p.id)}">Level</label><select class="select sm" id="cat-${esc(p.id)}" data-change="player-cat" ${locked ? "disabled title=\"Revert the sale to change category\"" : ""}>${levelOpts(p.category, (c) => "Level " + c.code)}</select></div>
           <div class="pstat"><span class="badge b-${esc(p.status)}">${{ pool: "To come", live: "Under hammer", sold: "Sold", unsold: "Unsold", retained: "Retained" }[p.status]}</span>${t ? `${teamChip(t)} <span class="money">${INR(p.price)}</span>` : `<span class="hint" style="margin:0">${auctionable(p) ? "Base " + INR(cat(p.category).base_price) : "Retention only"}</span>`}</div>
           <div class="btns">
-            ${eligible(p) ? `<button class="mini primary" type="button" data-act="bring-now" ${started() && !A.state.player_id ? "" : "disabled"}>Bring now</button>${queueBtn(p)}` : ""}
+            ${eligible(p) ? `<button class="mini primary" type="button" data-act="bring-now" ${started() && !A.state.player_id ? "" : "disabled"}>Bring now</button>` : ""}
             ${ret ? `<button class="mini" type="button" data-act="retain">Retain…</button>` : ""}
             ${p.status === "retained" ? `<button class="mini" type="button" data-act="release">Release</button>` : ""}
             ${p.status === "sold" ? `<button class="mini" type="button" data-act="revert">Revert sale</button>` : ""}
-            <button class="mini" type="button" data-act="player-edit">Edit</button>
-            <button class="mini danger" type="button" data-act="player-del" ${p.status === "live" ? "disabled" : ""}>Delete</button></div>
+            </div>
         </article>`;
       }).join("") : `<div class="empty">${A.players.some((p) => p.in_list) ? "No players match these filters." : "No players yet. Players join this list automatically when their registration is marked Payment received."}</div>`}</div>`;
   }
   // why a player row is highlighted (empty when all is well)
   function flagOf(p) {
-    if (!p.category) return "Needs a level";
-    if (p.status === "retained") return p.category === "A" || p.category === "A+" ? "" : "Retained: becomes A+";
-    if (!paid(p)) return "pay";
-    const x = RS.listed(p.name);
-    if (!x) return "unlisted";
-    if (x.category !== p.category) return `List says ${x.category}`;
-    return "";
+    return p.category ? "" : "Needs a level";
   }
 
   // =====================================================================
@@ -526,38 +478,11 @@
     } catch (ex) { if (ex.message !== "signed-out") { err.textContent = "Couldn't reach the server."; err.hidden = false; } } finally { btn.disabled = false; }
   }
 
-  // ---- player add/edit ----
-  function playerDialog(p) {
-    openDlg(`<form data-submit="player-save" data-id="${p ? esc(p.id) : ""}" novalidate><h2>Edit player</h2><div class="fgrid" style="margin-top:12px">
-      <div class="wide"><label class="label" for="p-name">Name</label><input class="input" id="p-name" data-k="name" maxlength="80" value="${esc(p ? p.name : "")}"></div>
-      <div><label class="label" for="p-role">Role</label><select class="select" id="p-role" data-k="role"><option value="">Not set</option>${ROLES.map((x) => `<option ${p && p.role === x ? "selected" : ""}>${x}</option>`).join("")}</select></div>
-      <div><label class="label" for="p-age">Age</label><input class="input" id="p-age" data-k="age" inputmode="numeric" maxlength="2" value="${esc(p && p.age ? p.age : "")}"></div>
-      <div><label class="label" for="p-cat">Category</label><select class="select" id="p-cat" data-k="category" ${p && ["live", "sold"].includes(p.status) ? "disabled" : ""}>${levelOpts(p ? p.category : "", (c) => c.label)}</select></div>
-      <div class="wide"><label class="label" for="p-played">Tournaments played <span class="opt">(optional)</span></label><input class="input" id="p-played" data-k="tournaments_played" maxlength="300" value="${esc(p ? p.tournaments_played || "" : "")}"></div>
-      <div class="wide"><label class="label" for="p-notes">Notes <span class="opt">(admin only)</span></label><input class="input" id="p-notes" data-k="notes" maxlength="500" value="${esc(p ? p.notes || "" : "")}"></div></div>
-      <p class="form-err" id="p-err" role="alert" hidden style="margin-top:12px"></p>
-      <div class="dlg-acts" style="margin-top:14px"><button class="mini" type="button" data-d="no">Cancel</button><button class="btn" type="submit">Save</button></div></form>`);
-  }
-  function importDialog(pre) {
-    const rows = (A.registrations || []);
-    const free = rows.filter((r) => !r.imported);
-    const preset = new Set(pre ? [pre] : []);
-    openDlg(`<form data-submit="import"><h2>Add registered players</h2>
-      <p class="hint" style="margin:6px 0 10px">Pick who goes into the auction pool. Name, role, age and tournaments are copied from the registration.</p>
-      <div class="toolbar"><div class="seg" role="group" aria-label="Show"><button type="button" data-d2="all" aria-pressed="true">All (${free.length})</button><button type="button" data-d2="verified" aria-pressed="false">Payment received (${free.filter((r) => r.payment_status === "verified").length})</button></div>
-        <button class="mini" type="button" data-d2="toggle">Select all shown</button></div>
-      <div class="importlist" id="implist">${rows.map((r) => `<label class="imp${r.imported ? " done" : ""}" data-pay="${esc(r.payment_status)}"><input type="checkbox" value="${esc(r.id)}" ${r.imported ? "disabled" : ""} ${preset.has(r.id) ? "checked" : ""}><span><b>${esc(r.name)}</b> ${listBadge(r.name)}<small>${esc(r.role)} · ${esc(r.tournaments_played || "")}</small></span><span class="badge b-${r.imported ? "sold" : esc(r.payment_status)}">${r.imported ? "In auction" : esc(PAY[r.payment_status])}</span></label>`).join("") || `<p class="hint">No registrations yet.</p>`}</div>
-      <div class="fgrid" style="margin-top:12px"><div><label class="label" for="i-cat">Category for these players</label><select class="select" id="i-cat"><option value="list" selected>From the category list</option>${A.categories.map((c) => `<option value="${esc(c.code)}">${esc(c.label)}</option>`).join("")}</select></div></div>
-      <p class="form-err" id="i-err" role="alert" hidden style="margin-top:12px"></p>
-      <div class="dlg-acts" style="margin-top:14px"><button class="mini" type="button" data-d="no">Cancel</button><button class="btn" type="submit">Add to auction</button></div></form>`);
-  }
-
   // ---- delegated dialog events ----
   dbody.addEventListener("click", (e) => {
     if (e.target.closest("[data-d='no']") && !e.target.closest("[data-d='yes']")) { if (!dbody.querySelector("[data-d='yes']")) closeDlg(); return; }
     const b = e.target.closest("[data-d2]"); if (!b) return;
     if (b.dataset.d2 === "close") { closeDlg(); return; }
-    if (b.dataset.d2 === "force-start") { closeDlg(); act("start", {}, "Auction started"); return; }
     const list = $("#implist");
     if (b.dataset.d2 === "toggle") { const boxes = $$("label:not([hidden]) input:not(:disabled)", list); const all = boxes.every((x) => x.checked); boxes.forEach((x) => (x.checked = !all)); return; }
     $$("[data-d2='all'],[data-d2='verified']").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
@@ -567,23 +492,7 @@
     e.preventDefault();
     const form = e.target, kind = form.dataset.submit;
     if (kind === "reg-save") return saveReg(form);
-    if (kind === "player-save") {
-      const d = {}; $$("[data-k]", form).forEach((n) => (d[n.dataset.k] = n.value));
-      const id = form.dataset.id;
-      const ok = await act(id ? "update_player" : "add_player", id ? { id, ...d } : d, id ? "Player updated" : "Player added");
-      if (ok) closeDlg(); else { const m = $("#toast").textContent; const er = $("#p-err"); er.textContent = m; er.hidden = false; }
-    } else if (kind === "import") {
-      const ids = $$("#implist input:checked", form).map((x) => x.value), choice = $("#i-cat").value, er = $("#i-err");
-      const groups = {};
-      if (choice === "list") {
-        const regs = A.registrations || [], skipped = [];
-        for (const id of ids) { const r = regs.find((x) => x.id === id), l = r && RS.listed(r.name); if (l) (groups[l.category] = groups[l.category] || []).push(id); else skipped.push(r ? r.name : id); }
-        if (skipped.length) { er.textContent = `Not on the category list, so pick a category for them instead: ${skipped.join(", ")}`; er.hidden = false; return; }
-      } else groups[choice] = ids;
-      let ok = true;
-      for (const [category, list] of Object.entries(groups)) if (list.length) ok = (await act("import", { registration_ids: list, category })) && ok;
-      if (ok) { closeDlg(); toast(`${ids.length} player${ids.length === 1 ? "" : "s"} added to the auction`); } else { er.textContent = $("#toast").textContent; er.hidden = false; }
-    } else if (kind === "retain") {
+    if (kind === "retain") {
       const ok = await act("retain", { player_id: form.dataset.id, team_id: $("#ret-team").value }, "Player retained");
       if (ok) closeDlg();
     } else if (kind === "reset") {
@@ -653,7 +562,6 @@
       if (!data.ok) return toast(data.message || "Couldn't delete.", true);
       R = R.filter((x) => x.id !== r.id); seenRegs && seenRegs.delete(r.id); render(); toast("Entry deleted");
     },
-    "reg-to-auction": (b) => { if (!A.registrations) return; importDialog(idOf(b)); },
     img(b) {
       const r = R.find((x) => x.id === idOf(b)), kind = b.dataset.kind;
       $("#img-h").textContent = `${kind === "photo" ? "Photograph" : "Payment screenshot"} · ${r.name}`; $("#img-el").alt = $("#img-h").textContent;
@@ -664,30 +572,8 @@
     bring: () => act("bring", { category: ui.pickCat === "any" ? undefined : ui.pickCat }, "Under the hammer"),
     "bring-now": (b) => act("bring", { player_id: idOf(b) }, "Under the hammer"),
     pickst: (b) => { ui.pickSt = b.dataset.v; render(); },
-    "queue-add": (b) => act("queue_add", { player_id: idOf(b) }, "Added to the queue"),
-    "queue-remove": (b) => act("queue_remove", { player_id: idOf(b) }, "Removed from the queue"),
-    "queue-clear": () => act("queue_clear", {}, "Queue cleared"),
-    async "apply-roster"() {
-      const c = rcheck();
-      const text = [c.notImported.length && `add ${c.notImported.length} paid player${c.notImported.length === 1 ? "" : "s"} to the auction`, c.wrongCat.length && `change ${c.wrongCat.length} categor${c.wrongCat.length === 1 ? "y" : "ies"} to match the list`, c.retainedToFix.length && `make ${c.retainedToFix.length} retained player${c.retainedToFix.length === 1 ? "" : "s"} A+ (retention value updated)`].filter(Boolean).join(", ");
-      if (await ask({ title: "Apply the category list?", text: `This will ${text}. Names that don't match the list are left alone for you to fix.`, ok: "Apply" })) act("apply_roster", {}, "Category list applied");
-    },
     async start() {
-      const c = rcheck(), probs = [];
-      const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
-      if (c.missing.length) probs.push(`${n(c.missing.length, "name", "names")} on the list ${c.missing.length === 1 ? "is" : "are"} not in the registrations: ${c.missing.slice(0, 6).map((x) => x.name).join(", ")}${c.missing.length > 6 ? "…" : ""}`);
-      if (c.unlisted.length) probs.push(`${n(c.unlisted.length, "paid registration", "paid registrations")} not on the list (no category): ${c.unlisted.slice(0, 6).map((x) => x.reg.name).join(", ")}${c.unlisted.length > 6 ? "…" : ""}`);
-      if (c.dupes.length) probs.push(`${n(c.dupes.length, "player is", "players are")} registered twice with payment.`);
-      if (c.notImported.length) probs.push(`${n(c.notImported.length, "listed player is", "listed players are")} not in the auction yet (Apply list categories fixes this).`);
-      if (c.wrongCat.length) probs.push(`${n(c.wrongCat.length, "player has", "players have")} a category different from the list (Apply fixes this).`);
-      if (c.retainedToFix.length) probs.push(`${n(c.retainedToFix.length, "retained player is", "retained players are")} not A or A+ (Apply fixes this).`);
-      if (!probs.length) {
-        if (await ask({ title: "Start the auction?", text: `All ${c.total} listed players are in the auction with a category. Bring player will then put them under the hammer.`, ok: "Start auction" })) act("start", {}, "Auction started");
-        return;
-      }
-      openDlg(`<h2>Fix these before starting</h2><p class="hint" style="margin:6px 0 10px">Every listed player should be in the auction with their list category. Payment status does not matter.</p>
-        <ul class="probs">${probs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
-        <div class="dlg-acts" style="margin-top:14px;flex-wrap:wrap"><button class="mini" type="button" data-d="no">Cancel</button><a class="mini" href="#/players" data-d2="close">Open the category check</a><button class="mini solid-danger" type="button" data-d2="force-start">Start anyway</button></div>`);
+      if (await ask({ title: "Start the auction?", text: "Players with payment received are in the pool. Bring player will then put them under the hammer.", ok: "Start auction" })) act("start", {}, "Auction started");
     },
     pickcat: (b) => { ui.pickCat = b.dataset.v; render(); },
     bid: (b) => act("bid", { team_id: b.dataset.team }),
@@ -702,13 +588,6 @@
     pause: (b) => act("pause", { paused: b.dataset.v === "1" }, b.dataset.v === "1" ? "Auction paused" : "Auction resumed"),
     // players
     pfilter: (b) => { ui[b.dataset.k] = b.dataset.v; render(); },
-    import: () => importDialog(null),
-    "player-add": () => playerDialog(null),
-    "player-edit": (b) => playerDialog(player(idOf(b))),
-    async "player-del"(b) {
-      const p = player(idOf(b));
-      if (await ask({ title: "Delete player?", text: `${p.name} is removed from the auction${p.team_id ? " and the team's purse is refunded" : ""}. The registration itself stays.`, ok: "Delete", danger: true })) act("delete_player", { id: p.id }, "Player deleted");
-    },
     retain(b) {
       const p = player(idOf(b));
       openDlg(`<form data-submit="retain" data-id="${esc(p.id)}"><h2>Retain ${esc(p.name)}</h2><p class="hint" style="margin:6px 0 12px">Retention value ${INR(cat(p.category).retention_value)} comes off the team's purse.</p>

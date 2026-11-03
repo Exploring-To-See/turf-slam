@@ -3,7 +3,6 @@ const { adminRoute } = require("../_lib/admin");
 const { snapshot, currentVersion, one } = require("../_lib/auction");
 const { UUID_RE } = require("../_lib/validate");
 const { send } = require("../_lib/http");
-const roster = require("../../public/shared/roster.js");
 
 const ROLES = ["Only batter", "Only bowler", "All rounder", "Wicket keeper"];
 const CATS = ["A+", "A", "B"];
@@ -78,18 +77,6 @@ const actions = {
     await one(sb.from("ts_players").update({ queue_pos: null }).eq("id", b.player_id));
   },
   async queue_clear(sb) { await one(sb.from("ts_players").update({ queue_pos: null }).not("queue_pos", "is", null)); },
-  // Apply the official category list: add registrations that are on it, set their categories,
-  // and make every retained player who is not category A an A+.
-  async apply_roster(sb) {
-    const regs = await one(sb.from("registrations").select("id, name, payment_status").eq("status", "received").limit(2000));
-    const players = await one(sb.from("ts_players").select("id, name, category, status, registration_id"));
-    const c = roster.check(regs, players);
-    // listed registrations whose payment is not received yet keep their level, so they arrive with it once paid
-    for (const m of c.unpaid) await one(sb.rpc("ts_import_one", { p_reg: m.reg.id, p_category: m.category }));
-    for (const m of c.notImported) await one(sb.rpc("ts_import_one", { p_reg: m.reg.id, p_category: m.category }));
-    for (const m of c.wrongCat) if (["pool", "unsold"].includes(m.player.status)) await one(sb.rpc("ts_set_category", { p_player: m.player.id, p_category: m.category }));
-    for (const p of c.retainedToFix) await one(sb.rpc("ts_set_category", { p_player: p.id, p_category: "A+" }));
-  },
   async bid(sb, b) { await one(sb.rpc("ts_place_bid", { p_team: int(b.team_id, "Team", { min: 1 }), p_amount: b.amount ? int(b.amount, "Amount", { min: 1 }) : null })); },
   async undo_bid(sb) { await one(sb.rpc("ts_undo_bid")); },
   async sell(sb, b) { await one(sb.rpc("ts_sell", { p_team: b.team_id ? int(b.team_id, "Team", { min: 1 }) : null, p_price: b.price ? int(b.price, "Price", { min: 1 }) : null })); },
@@ -103,14 +90,6 @@ const actions = {
   },
 
   // ----- players -----
-  async import(sb, b) {
-    const ids = Array.isArray(b.registration_ids) ? b.registration_ids.filter((x) => UUID_RE.test(String(x))) : [];
-    if (!ids.length) throw bad("Select at least one registered player.");
-    const category = b.category === "" || b.category == null ? null : b.category;
-    if (category !== null && !CATS.includes(category)) throw bad("Pick a category for the imported players.");
-    // only registrations with payment received become auction players; the others just keep the level for later
-    await one(sb.rpc("ts_import_registrations", { p_ids: ids, p_category: category }));
-  },
   // Set the category of many players at once. Players who are live / sold / retained are left alone.
   async bulk_category(sb, b) {
     const ids = Array.isArray(b.ids) ? b.ids.filter((x) => UUID_RE.test(String(x))) : [];

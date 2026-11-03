@@ -18,14 +18,12 @@
   // the page is revealed while the stinger's dark panel covers the screen; the panels finish crossing, then the intro goes
   function reveal() {
     document.body.classList.remove("lock");
+    const st = $("#stage"); if (st && st.querySelector(".ts-wrap")) S.restart(st, "is-enter", 2600);   // the player card plays its entrance as the opening lifts
     requestAnimationFrame(() => { document.body.classList.remove("pre"); document.body.classList.add("ready"); });
     placeSlider();
   }
   function endIntro() { if (intro.isConnected) intro.remove(); reveal(); }
   (function runIntro() {
-    let seenBefore = false;
-    try { seenBefore = sessionStorage.getItem("ts-auction-intro") === "1"; sessionStorage.setItem("ts-auction-intro", "1"); } catch (_) {}
-    if (seenBefore) return endIntro();
     $("#intro-skip").addEventListener("click", endIntro);
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && intro.isConnected) endIntro(); });
     if (S.reduce) setTimeout(endIntro, 900);
