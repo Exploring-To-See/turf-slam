@@ -338,12 +338,12 @@
         return `<article class="prow${p.status === "live" ? " live" : ""}${flag ? " flag" : ""}" data-id="${esc(p.id)}">
           <div class="pid"><input class="selbox" type="checkbox" data-sel aria-label="Select ${esc(p.name)}" ${ui.sel.has(p.id) ? "checked" : ""}>${avatar(p)}<div><b>${esc(p.name)}</b><small>#${p.serial}${p.role ? " · " + esc(p.role) : ""}${p.age ? " · " + esc(p.age) + " yrs" : ""}${p.registration_reference ? " · " + esc(p.registration_reference) : " · added manually"}</small>
             <span class="flags">${flag ? `<span class="badge b-awaiting_review">${esc(flag)}</span>` : ""}</span></div></div>
-          <div><label class="sr" for="cat-${esc(p.id)}">Level</label><select class="select sm" id="cat-${esc(p.id)}" data-change="player-cat" ${locked ? "disabled title=\"Revert the sale to change category\"" : ""}>${levelOpts(p.category, (c) => "Level " + c.code)}</select></div>
+          <div><label class="sr" for="cat-${esc(p.id)}">Level</label><select class="select sm" id="cat-${esc(p.id)}" data-change="player-cat" ${locked || p.status === "retained" ? "disabled title=\"Use Edit retention to change a retained player\"" : ""}>${levelOpts(p.category, (c) => "Level " + c.code)}</select></div>
           <div class="pstat"><span class="badge b-${esc(p.status)}">${{ pool: "To come", live: "Under hammer", sold: "Sold", unsold: "Unsold", retained: "Retained" }[p.status]}</span>${t ? `${teamChip(t)} <span class="money">${INR(p.price)}</span>` : `<span class="hint" style="margin:0">${auctionable(p) ? "Base " + INR(cat(p.category).base_price) : "Retention only"}</span>`}</div>
           <div class="btns">
             ${eligible(p) ? `<button class="mini primary" type="button" data-act="bring-now" ${started() && !A.state.player_id ? "" : "disabled"}>Bring now</button>` : ""}
             ${ret ? `<button class="mini" type="button" data-act="retain">Retain…</button>` : ""}
-            ${p.status === "retained" ? `<button class="mini" type="button" data-act="release">Release</button>` : ""}
+            ${p.status === "retained" ? `<button class="mini" type="button" data-act="edit-ret">Edit retention</button><button class="mini" type="button" data-act="release">Release</button>` : ""}
             ${p.status === "sold" ? `<button class="mini" type="button" data-act="revert">Revert sale</button>` : ""}
             </div>
         </article>`;
@@ -378,7 +378,7 @@
             </div>
             <div class="btns"><button class="mini primary" type="button" data-act="team-save">Save team</button><button class="mini danger" type="button" data-act="team-del" ${mine.length ? "disabled title=\"Remove this team's players first\"" : ""}>Delete team</button></div>
             <div><h4 class="label">Squad</h4>
-              <ul class="squad">${mine.map((p) => `<li data-id="${esc(p.id)}"><span>${esc(p.name)} <span class="badge b-${esc(p.status)}">${p.status === "retained" ? "Retained" : "Bought"}</span></span><span class="money num">${INR(p.price)}</span><button class="mini" type="button" data-act="${p.status === "retained" ? "release" : "revert"}">${p.status === "retained" ? "Release" : "Revert"}</button></li>`).join("") || `<li><span class="hint" style="margin:0">No players yet.</span></li>`}</ul></div>
+              <ul class="squad">${mine.map((p) => `<li data-id="${esc(p.id)}"><span>${esc(p.name)} <span class="badge b-${esc(p.status)}">${p.status === "retained" ? "Retained" : "Bought"}</span></span><span class="money num">${INR(p.price)}</span>${p.status === "retained" ? `<button class="mini" type="button" data-act="edit-ret">Edit</button>` : ""}<button class="mini" type="button" data-act="${p.status === "retained" ? "release" : "revert"}">${p.status === "retained" ? "Release" : "Revert"}</button></li>`).join("") || `<li><span class="hint" style="margin:0">No players yet.</span></li>`}</ul></div>
             <div><label class="label" for="${k("ret")}">Retain a player (${A.settings.retain_per_team} allowed)</label>
               <div class="btns" style="flex-wrap:nowrap"><select class="select sm" id="${k("ret")}" data-keep="${k("ret")}"><option value="">Choose a player</option>${retainable.map((p) => `<option value="${esc(p.id)}" ${val(k("ret"), "") === p.id ? "selected" : ""}>${esc(p.name)} (Cat ${esc(p.category)}, ${short(cat(p.category).retention_value)})</option>`).join("")}</select>
                 <button class="mini primary" type="button" data-act="team-retain">Retain</button></div></div>
@@ -494,7 +494,11 @@
     e.preventDefault();
     const form = e.target, kind = form.dataset.submit;
     if (kind === "reg-save") return saveReg(form);
-    if (kind === "retain") {
+    if (kind === "edit-ret") {
+      const er = $("#er-err"); er.hidden = true;
+      const ok = await act("edit_retention", { player_id: form.dataset.id, category: $("#er-cat").value, price: $("#er-price").value }, "Retention updated");
+      if (ok) closeDlg(); else { er.textContent = $("#toast").textContent; er.hidden = false; }
+    } else if (kind === "retain") {
       const ok = await act("retain", { player_id: form.dataset.id, team_id: $("#ret-team").value }, "Player retained");
       if (ok) closeDlg();
     } else if (kind === "reset") {
@@ -592,6 +596,18 @@
     pause: (b) => act("pause", { paused: b.dataset.v === "1" }, b.dataset.v === "1" ? "Auction paused" : "Auction resumed"),
     // players
     pfilter: (b) => { ui[b.dataset.k] = b.dataset.v; render(); },
+    "edit-ret"(b) {
+      const p = player(idOf(b)); if (!p) return;
+      const t = team(p.team_id);
+      openDlg(`<form data-submit="edit-ret" data-id="${esc(p.id)}"><h2>Edit retention: ${esc(p.name)}</h2>
+        <p class="hint" style="margin:6px 0 12px">${esc(t ? t.name : "")} · set the level and what the team pays. The price comes off the team's purse.</p>
+        <div class="fgrid"><div><label class="label" for="er-cat">Level</label><select class="select" id="er-cat">${A.categories.map((c) => `<option value="${esc(c.code)}" ${c.code === p.category ? "selected" : ""}>${esc(c.label)}${c.retention_value ? " (usually " + short(c.retention_value) + ")" : ""}</option>`).join("")}</select></div>
+          <div><label class="label" for="er-price">Retention price (₹)</label><input class="input" id="er-price" inputmode="numeric" autocomplete="off" value="${esc(p.price)}"></div></div>
+        <p class="form-err" id="er-err" role="alert" hidden style="margin-top:12px"></p>
+        <div class="dlg-acts" style="margin-top:14px"><button class="mini" type="button" data-d="no">Cancel</button><button class="btn" type="submit">Save</button></div></form>`);
+      const price = $("#er-price"), catSel = $("#er-cat");   // picking another level offers that level's usual value, which can still be typed over
+      catSel.addEventListener("change", () => { const c = cat(catSel.value); if (c && c.retention_value) price.value = c.retention_value; });
+    },
     retain(b) {
       const p = player(idOf(b));
       openDlg(`<form data-submit="retain" data-id="${esc(p.id)}"><h2>Retain ${esc(p.name)}</h2><p class="hint" style="margin:6px 0 12px">Retention value ${INR(cat(p.category).retention_value)} comes off the team's purse.</p>

@@ -84,6 +84,12 @@ const actions = {
   async revert(sb, b) { await one(sb.rpc("ts_revert_sale", { p_player: b.player_id, p_to: b.to === "unsold" ? "unsold" : "pool" })); },
   async pause(sb, b) { await one(sb.rpc("ts_set_paused", { p_paused: !!b.paused })); },
   async retain(sb, b) { await one(sb.rpc("ts_set_retention", { p_player: b.player_id, p_team: b.team_id ? int(b.team_id, "Team", { min: 1 }) : null })); },
+  // Change a retained player's level and what the team pays for the retention.
+  async edit_retention(sb, b) {
+    if (!UUID_RE.test(String(b.player_id))) throw bad("Bad request.");
+    if (!CATS.includes(b.category)) throw bad("Pick a level.");
+    await one(sb.rpc("ts_edit_retention", { p_player: b.player_id, p_category: b.category, p_price: int(String(b.price ?? "").replace(/[^\d]/g, ""), "Retention price", { min: 1 }) }));
+  },
   async reset(sb, b) {
     if (b.confirm !== "RESET") throw bad("Type RESET to confirm.");
     await one(sb.rpc("ts_reset", { p_include_retained: !!b.include_retained }));
