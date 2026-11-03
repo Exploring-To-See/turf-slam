@@ -65,6 +65,7 @@
   // ---------- polling ----------
   let timer = 0, busy = false, regTick = 0;
   const stopTimer = () => { clearTimeout(timer); timer = 0; };
+  const refreshNow = () => { if ($("#app").hidden) return; stopTimer(); tick(); };   // a change made here shows up everywhere right away, not at the next poll
   async function tick() {
     if (busy) return; busy = true;
     try {
@@ -90,7 +91,7 @@
       if (changed) render();
     } catch (e) { if (e.message !== "signed-out") { $("#live").classList.add("off"); $("#live-t").textContent = "Offline, retrying"; } }
     finally { busy = false; }
-    if ($("#app").hidden === false) timer = setTimeout(tick, route === "live" ? 1500 : 3000);
+    if ($("#app").hidden === false) timer = setTimeout(tick, route === "live" ? 1500 : 2000);
   }
   document.addEventListener("visibilitychange", () => { if (!document.hidden && !$("#app").hidden) { stopTimer(); tick(); } });
 
@@ -525,7 +526,7 @@
       const prev = r.auction_category; r.auction_category = n.value || null;
       const { data } = await post("/api/admin/registrations", { id, auction_category: n.value || null }, "PATCH");
       if (!data.ok) { r.auction_category = prev; toast(data.message || "Couldn't set the level.", true); }
-      else { Object.assign(r, data.row); toast(n.value ? `${r.name} is level ${n.value}` : `${r.name} is unassigned`); }
+      else { Object.assign(r, data.row); refreshNow(); toast(n.value ? `${r.name} is level ${n.value}` : `${r.name} is unassigned`); }
       render(); return;
     }
     if (n.dataset.change === "player-cat") { const id = n.closest("[data-id]").dataset.id; await act("update_player", { id, category: n.value }, n.value ? "Level updated" : "Level cleared"); render(); }
@@ -554,7 +555,7 @@
       r.payment_status = v; render();
       const { data } = await post("/api/admin/registrations", { id, payment_status: v }, "PATCH");
       if (!data.ok) { r.payment_status = prev; render(); toast(data.message || "Couldn't update payment.", true); }
-      else { Object.assign(r, data.row); render(); toast(v === "verified" ? "Payment marked received" : v === "due" ? "Payment marked due" : "Payment reset to awaiting review"); }
+      else { Object.assign(r, data.row); render(); refreshNow(); toast(v === "verified" ? "Payment marked received" : v === "due" ? "Payment marked due" : "Payment reset to awaiting review"); }
     },
     "reg-add": () => regDialog(null),
     "reg-edit": (b) => regDialog(R.find((x) => x.id === idOf(b))),

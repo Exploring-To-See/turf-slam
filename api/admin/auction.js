@@ -46,14 +46,14 @@ const actions = {
     // a chosen player (from the pool or the unsold list) goes straight under the hammer
     if (b.player_id) {
       if (!UUID_RE.test(String(b.player_id))) throw bad("Bad request.");
-      const p = await one(sb.from("ts_players").select("name, category, status, queue_pos").eq("id", b.player_id).single());
-      if (!["pool", "unsold"].includes(p.status)) throw bad(`${p.name} is not available for the auction.`);
+      const p = await one(sb.from("ts_player_cards").select("name, category, status, payment_status").eq("id", b.player_id).single());
+      if (!["pool", "unsold"].includes(p.status) || p.payment_status !== "verified") throw bad(`${p.name} is not available for the auction.`);
       if (!["A", "B"].includes(p.category)) throw bad(`${p.name} has no level yet. Give them A or B first.`);
       await one(sb.rpc("ts_open_lot", { p_player: b.player_id }));
       return;
     }
     const eligible = await one(sb.from("ts_player_cards").select("id, category, status, queue_pos")
-      .in("status", ["pool", "unsold"]).in("category", ["A", "B"]));
+      .in("status", ["pool", "unsold"]).in("category", ["A", "B"]).eq("payment_status", "verified"));
     const queued = eligible.filter((p) => p.queue_pos != null).sort((x, y) => x.queue_pos - y.queue_pos);
     if (queued.length) { await one(sb.rpc("ts_open_lot", { p_player: queued[0].id })); return; }
     const cat = ["A", "B"].includes(b.category) ? b.category : null;
