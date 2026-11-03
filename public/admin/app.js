@@ -20,7 +20,7 @@
   let R = null;            // registrations
   let route = "overview";
   let seenRegs = null, freshRegs = new Set();
-  const ui = { regFilter: "all", regQ: "", pf: "all", pc: "all", pq: "", pickCat: "any", pickQ: "" };
+  const ui = { sel: new Set(), regFilter: "all", regQ: "", pf: "all", pc: "all", pq: "", pickCat: "any", pickQ: "" };
   const drafts = {};       // unsaved field values, survive re-renders
   let pendingTr = [], fsPres = null;   // animation moves waiting for the next render; the full-screen card
   function setA(next) { const tr = window.TSStage.detect(A, next); pendingTr = pendingTr.concat(tr); A = next; if (fsPres) fsPres.update(A); }
@@ -44,7 +44,7 @@
     try {
       const { data } = await post("/api/admin/auction", { action, ...body });
       if (!data.ok) { toast(data.message || "That didn't work.", true); return false; }
-      setA(data); render(); if (okMsg) toast(okMsg); return true;
+      setA(data); render(); if (data.note || okMsg) toast(data.note || okMsg); return true;
     } catch (e) { if (e.message !== "signed-out") toast("Couldn't reach the server.", true); return false; }
   }
 
@@ -133,6 +133,81 @@
   const team = (id) => A.teams.find((t) => t.id === id);
   const player = (id) => A.players.find((p) => p.id === id);
   const cat = (c) => A.categories.find((x) => x.code === c);
+
+  // ---------- category list matching (official A / B sheet vs registrations and auction players) ----------
+  const normName = (s) => String(s || "").toLowerCase().replace(/[^a-z]/g, "");
+  function lev(a, b) {
+    if (Math.abs(a.length - b.length) > 2) return 9;
+    let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+      const cur = [i];
+      for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = cur;
+    }
+    return prev[b.length];
+  }
+  // Every sheet name is paired with at most one person: exact spelling first, then a unique near match (spelling slips).
+  function catReport() {
+    const sheet = [];
+    for (const c of ["A", "B"]) for (const n of window.TS_CATEGORY_LIST[c]) sheet.push({ name: n, cat: c, key: normName(n), who: null, close: false });
+    const people = [];
+    for (const p of A.players) people.push({ kind: "player", id: p.id, name: p.name, key: normName(p.name), cat: p.category, status: p.status });
+    const inAuction = new Set(A.players.map((p) => p.registration_id).filter(Boolean));
+    for (const r of A.registrations || []) if (!inAuction.has(r.id)) people.push({ kind: "reg", id: r.id, name: r.name, key: normName(r.name), cat: null });
+    const free = (list) => list.filter((x) => !x.hit);
+    for (const s of sheet) { const m = free(people).find((x) => x.key === s.key); if (m) { m.hit = s; s.who = m; } }
+    for (const s of free(sheet)) {
+      const ms = free(people).filter((x) => lev(x.key, s.key) <= 2);
+      if (ms.length === 1) { ms[0].hit = s; s.who = ms[0]; s.close = true; }
+    }
+    return { sheet, people, matched: sheet.filter((s) => s.who), missing: sheet.filter((s) => !s.who), unmarked: people.filter((x) => !x.hit) };
+  }
+  let reportCache = null, reportKey = "";
+  function report() {
+    const k = A.v + ":" + (A.registrations || []).length;
+    if (k !== reportKey) { reportCache = catReport(); reportKey = k; }
+    return reportCache;
+  }
+  const isUnmarked = (p) => !!A.registrations && report().unmarked.some((x) => x.kind === "player" && x.id === p.id);
+  const isUnmarkedReg = (r) => report().unmarked.some((x) => x.kind === "reg" && x.id === r.id);
+
+  function bulkBar(rows) {
+    const n = ui.sel.size, usable = rows.filter((p) => ["pool", "unsold"].includes(p.status));
+    return `<div class="bulkbar${n ? " on" : ""}"><label class="selall"><input type="checkbox" data-selall ${usable.length && usable.every((p) => ui.sel.has(p.id)) ? "checked" : ""}> Select all shown</label>
+      <span class="hint" style="margin:0">${n ? `${n} selected` : "Tick players to change their category together"}</span>
+      <span class="btns"><select class="select sm" id="bulk-cat" aria-label="New category">${A.categories.map((c) => `<option value="${esc(c.code)}">Cat ${esc(c.code)}</option>`).join("")}</select>
+      <button class="mini primary" type="button" data-act="bulk-apply" ${n ? "" : "disabled"}>Set category</button>
+      <button class="mini" type="button" data-act="bulk-clear" ${n ? "" : "disabled"}>Clear</button></span></div>`;
+  }
+  const syncTodo = (r) => r.matched.filter((s) => s.who.kind === "reg" || (s.who.cat !== s.cat && ["pool", "unsold"].includes(s.who.status)));
+  function syncDialog() {
+    const r = report(), tag = (c) => `<span class="badge b-sold">${c}</span>`;
+    const todo = syncTodo(r);
+    const locked = r.matched.filter((s) => s.who.kind === "player" && s.who.cat !== s.cat && !["pool", "unsold"].includes(s.who.status));
+    openDlg(`<form data-submit="sync"><h2>Sync categories from the list</h2>
+      <p class="hint" style="margin:6px 0 10px">${r.sheet.length} names on the sheet (A ${window.TS_CATEGORY_LIST.A.length}, B ${window.TS_CATEGORY_LIST.B.length}). Matched players get the sheet's category. Registered players not yet in the auction are added with it.</p>
+      <div class="syncsum"><span class="badge b-sold">${r.matched.length} matched</span><span class="badge b-warn">${r.missing.length} on sheet, not registered</span><span class="badge b-warn">${r.unmarked.length} registered, not on sheet</span></div>
+      <h3 class="synch">Will change (${todo.length})</h3>
+      <ul class="synclist">${todo.map((s) => `<li><b>${esc(s.who.name)}</b>${s.close ? `<small class="warnt">sheet spells it “${esc(s.name)}”</small>` : ""}<span>${s.who.kind === "reg" ? "add to auction as " : s.who.cat + " → "}${tag(s.cat)}</span></li>`).join("") || `<li class="hint">Nothing to change. Everyone matched already has the right category.</li>`}</ul>
+      ${locked.length ? `<h3 class="synch">Skipped: on the block, sold or retained (${locked.length})</h3><ul class="synclist">${locked.map((s) => `<li><b>${esc(s.who.name)}</b><span>is ${tag(s.who.cat)}, sheet says ${tag(s.cat)}</span></li>`).join("")}</ul>` : ""}
+      <h3 class="synch warnh">On the sheet but not in registrations (${r.missing.length})</h3>
+      <ul class="synclist warn">${r.missing.map((s) => `<li><b>${esc(s.name)}</b><span>${tag(s.cat)}</span></li>`).join("") || `<li class="hint">None.</li>`}</ul>
+      <h3 class="synch warnh">Registered but not on the sheet, left unmarked (${r.unmarked.length})</h3>
+      <ul class="synclist warn">${r.unmarked.map((x) => `<li><b>${esc(x.name)}</b><span>${x.kind === "player" ? "in auction, " + tag(x.cat) : "registered only"}</span></li>`).join("") || `<li class="hint">None.</li>`}</ul>
+      <p class="form-err" id="sync-err" role="alert" hidden></p>
+      <div class="dlg-acts" style="margin-top:14px"><button class="mini" type="button" data-d="no">Close</button><button class="btn" type="submit" ${todo.length ? "" : "disabled"}>Apply categories</button></div></form>`);
+  }
+  async function applySync() {
+    const todo = syncTodo(report());
+    let ok = true;
+    for (const c of ["A", "B"]) {
+      const regs = todo.filter((s) => s.cat === c && s.who.kind === "reg").map((s) => s.who.id);
+      const pls = todo.filter((s) => s.cat === c && s.who.kind === "player").map((s) => s.who.id);
+      if (regs.length && ok) ok = await act("import", { registration_ids: regs, category: c });
+      if (pls.length && ok) ok = await act("bulk_category", { ids: pls, category: c });
+    }
+    return ok;
+  }
   const auctionable = (p) => !!cat(p.category).base_price;
   const avatar = (p) => `<div class="av"><span aria-hidden="true">${esc(initials(p.name))}</span>${p.has_photo ? `<img src="/api/auction/state?photo=${esc(p.id)}" alt="" loading="lazy" onerror="this.remove()">` : ""}</div>`;
   const teamChip = (t) => (t ? `<span class="tm"><i class="swatch" style="--c:${esc(t.color)}"></i>${esc(t.name)}</span>` : "");
@@ -297,15 +372,16 @@
     const chip = (key, v, l) => `<button class="chip" type="button" data-act="pfilter" data-k="${key}" data-v="${v}" aria-pressed="${ui[key] === v}">${l}</button>`;
     const cnt = (s) => A.players.filter((p) => p.status === s).length;
     return head("Players", `${A.players.length} in the auction · ${cnt("pool")} to come · ${cnt("sold")} sold · ${cnt("retained")} retained · ${cnt("unsold")} unsold`,
-      `<button class="mini" type="button" data-act="import">Add registered players</button><button class="btn" type="button" data-act="player-add">Add player</button>`) + `
+      `<button class="mini solid-danger" type="button" data-act="reset">Reset auction…</button><button class="mini" type="button" data-act="sync-cats">Sync categories from list</button><button class="mini" type="button" data-act="import">Add registered players</button><button class="btn" type="button" data-act="player-add">Add player</button>`) + `
       <div class="toolbar"><label class="sr" for="pq">Search players</label><input class="input" id="pq" data-keep="pq" type="search" placeholder="Search name or role" value="${esc(ui.pq)}" autocomplete="off">
         <div class="chips" role="group" aria-label="Status">${chip("pf", "all", "All")}${chip("pf", "pool", "To come")}${chip("pf", "sold", "Sold")}${chip("pf", "retained", "Retained")}${chip("pf", "unsold", "Unsold")}</div>
         <div class="chips" role="group" aria-label="Category">${chip("pc", "all", "Any cat")}${chip("pc", "A+", "A+")}${chip("pc", "A", "A")}${chip("pc", "B", "B")}</div></div>
+      ${bulkBar(rows)}
       <div class="list">${rows.length ? rows.map((p) => {
         const t = p.team_id ? team(p.team_id) : null, locked = ["live", "sold", "retained"].includes(p.status);
         const ret = cat(p.category).retention_value && (p.status === "pool" || p.status === "unsold");
-        return `<article class="prow${p.status === "live" ? " live" : ""}" data-id="${esc(p.id)}">
-          <div class="pid">${avatar(p)}<div><b>${esc(p.name)}</b><small>#${p.serial}${p.role ? " · " + esc(p.role) : ""}${p.age ? " · " + esc(p.age) + " yrs" : ""}${p.registration_reference ? " · " + esc(p.registration_reference) : " · added manually"}</small></div></div>
+        return `<article class="prow${p.status === "live" ? " live" : ""}${isUnmarked(p) ? " unmarked" : ""}" data-id="${esc(p.id)}">
+          <div class="pid"><input class="selbox" type="checkbox" data-sel aria-label="Select ${esc(p.name)}" ${ui.sel.has(p.id) ? "checked" : ""}>${avatar(p)}<div><b>${esc(p.name)}${isUnmarked(p) ? ` <span class="badge b-warn" title="Not in the official category list">Unmarked</span>` : ""}</b><small>#${p.serial}${p.role ? " · " + esc(p.role) : ""}${p.age ? " · " + esc(p.age) + " yrs" : ""}${p.registration_reference ? " · " + esc(p.registration_reference) : " · added manually"}</small></div></div>
           <div><label class="sr" for="cat-${esc(p.id)}">Category</label><select class="select sm" id="cat-${esc(p.id)}" data-change="player-cat" ${locked ? "disabled title=\"Revert or release the player to change category\"" : ""}>${A.categories.map((c) => `<option value="${esc(c.code)}" ${c.code === p.category ? "selected" : ""}>Cat ${esc(c.code)}</option>`).join("")}</select></div>
           <div class="pstat"><span class="badge b-${esc(p.status)}">${{ pool: "To come", live: "On the block", sold: "Sold", unsold: "Unsold", retained: "Retained" }[p.status]}</span>${t ? `${teamChip(t)} <span class="money">${INR(p.price)}</span>` : `<span class="hint" style="margin:0">${auctionable(p) ? "Base " + INR(cat(p.category).base_price) : "Retention only"}</span>`}</div>
           <div class="btns">
@@ -465,7 +541,7 @@
       <p class="hint" style="margin:6px 0 10px">Pick who goes into the auction pool. Name, role, age and tournaments are copied from the registration.</p>
       <div class="toolbar"><div class="seg" role="group" aria-label="Show"><button type="button" data-d2="all" aria-pressed="true">All (${free.length})</button><button type="button" data-d2="verified" aria-pressed="false">Payment received (${free.filter((r) => r.payment_status === "verified").length})</button></div>
         <button class="mini" type="button" data-d2="toggle">Select all shown</button></div>
-      <div class="importlist" id="implist">${rows.map((r) => `<label class="imp${r.imported ? " done" : ""}" data-pay="${esc(r.payment_status)}"><input type="checkbox" value="${esc(r.id)}" ${r.imported ? "disabled" : ""} ${preset.has(r.id) ? "checked" : ""}><span><b>${esc(r.name)}</b><small>${esc(r.role)} · ${esc(r.tournaments_played || "")}</small></span><span class="badge b-${r.imported ? "sold" : esc(r.payment_status)}">${r.imported ? "In auction" : esc(PAY[r.payment_status])}</span></label>`).join("") || `<p class="hint">No registrations yet.</p>`}</div>
+      <div class="importlist" id="implist">${rows.map((r) => `<label class="imp${r.imported ? " done" : ""}" data-pay="${esc(r.payment_status)}"><input type="checkbox" value="${esc(r.id)}" ${r.imported ? "disabled" : ""} ${preset.has(r.id) ? "checked" : ""}><span><b>${esc(r.name)}</b><small>${esc(r.role)} · ${esc(r.tournaments_played || "")}</small></span><span>${isUnmarkedReg(r) ? `<span class="badge b-warn" title="Not in the official category list">Unmarked</span> ` : ""}<span class="badge b-${r.imported ? "sold" : esc(r.payment_status)}">${r.imported ? "In auction" : esc(PAY[r.payment_status])}</span></span></label>`).join("") || `<p class="hint">No registrations yet.</p>`}</div>
       <div class="fgrid" style="margin-top:12px"><div><label class="label" for="i-cat">Category for these players</label><select class="select" id="i-cat">${A.categories.map((c) => `<option value="${esc(c.code)}" ${c.code === "B" ? "selected" : ""}>${esc(c.label)}</option>`).join("")}</select></div></div>
       <p class="form-err" id="i-err" role="alert" hidden style="margin-top:12px"></p>
       <div class="dlg-acts" style="margin-top:14px"><button class="mini" type="button" data-d="no">Cancel</button><button class="btn" type="submit">Add to auction</button></div></form>`);
@@ -493,6 +569,9 @@
       const ids = $$("#implist input:checked", form).map((x) => x.value);
       const ok = await act("import", { registration_ids: ids, category: $("#i-cat").value }, `${ids.length} player${ids.length === 1 ? "" : "s"} added to the auction`);
       if (ok) closeDlg(); else { const er = $("#i-err"); er.textContent = $("#toast").textContent; er.hidden = false; }
+    } else if (kind === "sync") {
+      const ok = await applySync();
+      if (ok) { closeDlg(); toast("Categories synced"); } else { const er = $("#sync-err"); er.textContent = $("#toast").textContent; er.hidden = false; }
     } else if (kind === "retain") {
       const ok = await act("retain", { player_id: form.dataset.id, team_id: $("#ret-team").value }, "Player retained");
       if (ok) closeDlg();
@@ -514,7 +593,15 @@
     drafts[k] = n.value;
   });
   view.addEventListener("change", async (e) => {
-    const n = e.target, k = n.dataset.keep; if (k && !["regq", "pq", "pickq"].includes(k)) drafts[k] = n.value;
+    const n = e.target;
+    if ("sel" in n.dataset) { const id = n.closest("[data-id]").dataset.id; n.checked ? ui.sel.add(id) : ui.sel.delete(id); render(); return; }
+    if ("selall" in n.dataset) {
+      const q = ui.pq.trim().toLowerCase();
+      A.players.filter((p) => (ui.pf === "all" || p.status === ui.pf) && (ui.pc === "all" || p.category === ui.pc) && (!q || `${p.name} ${p.role || ""}`.toLowerCase().includes(q)) && ["pool", "unsold"].includes(p.status))
+        .forEach((p) => (n.checked ? ui.sel.add(p.id) : ui.sel.delete(p.id)));
+      render(); return;
+    }
+    const k = n.dataset.keep; if (k && !["regq", "pq", "pickq"].includes(k)) drafts[k] = n.value;
     if (n.dataset.change === "player-cat") { const id = n.closest("[data-id]").dataset.id; await act("update_player", { id, category: n.value }, "Category updated"); render(); }
     if (n.dataset.change === "photos") { await act("update_settings", { show_photos: n.checked }, n.checked ? "Photos shown on the public page" : "Photos hidden on the public page"); }
   });
@@ -555,6 +642,12 @@
     },
     // live
     fs() { if (fsPres) return; fsPres = window.TSStage.openPresent({ title: A.title, hint: "Keys 1 to 9 and 0 still place bids", onClose: () => { fsPres = null; } }); fsPres.update(A); },
+    "sync-cats": () => syncDialog(),
+    "bulk-clear": () => { ui.sel.clear(); render(); },
+    async "bulk-apply"() {
+      const ids = [...ui.sel], category = $("#bulk-cat").value;
+      if (await act("bulk_category", { ids, category })) { ui.sel.clear(); render(); }
+    },
     "open-lot": (b) => act("open_lot", { player_id: idOf(b) }, "On the block"),
     random: () => act("random", { category: ui.pickCat === "any" ? undefined : ui.pickCat }, "On the block"),
     pickcat: (b) => { ui.pickCat = b.dataset.v; render(); },

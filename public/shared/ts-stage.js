@@ -86,11 +86,11 @@
         <article class="ts-lot"><i class="ts-sweep"></i>
           <div class="ts-photo"><span class="ts-serial">#${String(p.serial).padStart(2, "0")}</span><div class="ts-initials" aria-hidden="true">${esc(initials(p.name))}</div>${photo(p, true)}</div>
           <div class="ts-info">
-            <p class="ts-kicker">On the block</p>
+            <p class="ts-kicker">Under Hammer</p>
             <h2 class="ts-name">${esc(p.name)}</h2>
             <div class="ts-tags"><span class="ts-tag cat" ${ix()}>${esc(c.label)}</span>${p.role ? `<span class="ts-tag" ${ix()}>${esc(p.role)}</span>` : ""}${p.age ? `<span class="ts-tag" ${ix()}>Age ${esc(p.age)}</span>` : ""}</div>
             ${p.tournaments_played ? `<p class="ts-played" ${ix()}><b>Tournaments played</b>${esc(p.tournaments_played)}</p>` : ""}
-            <dl class="ts-facts"><div ${ix()}><dt>Base price</dt><dd>${INR(c.base_price)}</dd></div><div ${ix()}><dt>Bid step</dt><dd>${INR(c.increment)}</dd></div></dl>
+            <dl class="ts-facts"><div ${ix()}><dt>Base price</dt><dd>${INR(c.base_price)}</dd></div></dl>
           </div></article>
         <aside class="ts-board" aria-label="Current bid">${boardInner(snap)}</aside>
         <div class="ts-fx"></div></div>`;
@@ -210,12 +210,14 @@
   // ---------- team strip + full-screen shell ----------
   function stripHtml(snap) {
     const lead = snap.state.leading_team_id;
-    return snap.teams.map((t) => `<div class="ts-chip${lead === t.id && snap.state.status === "live" ? " lead" : ""}" style="--c:${esc(t.color)}"><b>${esc(t.short_name || t.name)}</b><span>${short(t.purse_left)}</span><small>${t.squad}/${t.max_squad} · max ${t.slots_left > 0 ? short(t.max_bid) : "full"}</small></div>`).join("");
+    return snap.teams.map((t) => `<div class="ts-cell${lead === t.id && snap.state.status === "live" ? " lead" : ""}" style="--c:${esc(t.color)}">
+      <div class="ts-cell-top"><i></i><b>${esc(t.short_name || t.name)}</b><em>${t.squad}/${t.max_squad}</em></div>
+      <strong>${short(t.purse_left)}</strong>
+      <small>${t.slots_left > 0 ? "Max bid " + short(t.max_bid) : "Squad full"}</small></div>`).join("");
   }
   function openPresent({ title = "The Turf Slam", hint = "", onClose } = {}) {
     const el = node(`<div class="ts-present" role="dialog" aria-label="Full screen player card">
       <header class="ts-p-head"><img src="/assets/turf-slam-logo-1200-noball.webp" width="1200" height="452" alt="The Turf Slam">
-        <div class="ts-p-title"><span class="ts-kicker">Player auction</span><b>${esc(title)}</b></div><span style="flex:1"></span>
         <button type="button" class="ts-p-btn" data-x>Exit full screen</button></header>
       <div class="ts-p-main"><div class="ts-stage" data-stage></div></div>
       <footer class="ts-p-strip" data-strip></footer>${hint ? `<span class="ts-p-hint">${esc(hint)}</span>` : ""}</div>`);

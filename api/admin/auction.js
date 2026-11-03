@@ -66,6 +66,18 @@ const actions = {
     if (!CATS.includes(b.category)) throw bad("Pick a category for the imported players.");
     await one(sb.rpc("ts_import_registrations", { p_ids: ids, p_category: b.category }));
   },
+  // Set the category of many players at once. Players who are live / sold / retained are left alone.
+  async bulk_category(sb, b) {
+    const ids = Array.isArray(b.ids) ? b.ids.filter((x) => UUID_RE.test(String(x))) : [];
+    if (!ids.length) throw bad("Select at least one player.");
+    if (!CATS.includes(b.category)) throw bad("Pick a category.");
+    const rows = await one(sb.from("ts_players").select("id, status").in("id", ids));
+    const ok = rows.filter((r) => ["pool", "unsold"].includes(r.status)).map((r) => r.id);
+    if (!ok.length) throw bad("Those players are on the block, sold or retained. Revert them to the pool first.");
+    await one(sb.from("ts_players").update({ category: b.category, updated_at: new Date().toISOString() }).in("id", ok));
+    const skipped = ids.length - ok.length;
+    return `${ok.length} player${ok.length === 1 ? "" : "s"} moved to category ${b.category}` + (skipped ? `, ${skipped} skipped (on the block, sold or retained)` : "");
+  },
   async add_player(sb, b) { await one(sb.from("ts_players").insert(playerFields(b, { partial: false }))); },
   async update_player(sb, b) {
     if (!UUID_RE.test(String(b.id))) throw bad("Bad request.");
@@ -145,14 +157,15 @@ module.exports = adminRoute(["GET", "POST"], async (req, res, body, admin) => {
     return send(res, 200, { ok: true, changed: true, admin: admin.name, ...(await snapshot({ admin: true })) });
   }
   const fn = actions[body.action];
+  let note;
   if (!fn) return send(res, 400, { ok: false, message: "Unknown action." });
   try {
-    await fn(db(), body);
+    note = await fn(db(), body);
   } catch (e) {
     // plpgsql `raise exception` (P0001) and our own validation errors are meant for the admin to read
     if (e.user || e.code === "P0001") return send(res, 400, { ok: false, message: e.message });
     if (e.code === "23505") return send(res, 400, { ok: false, message: "That already exists." });
     throw e;
   }
-  send(res, 200, { ok: true, changed: true, admin: admin.name, ...(await snapshot({ admin: true })) });
+  send(res, 200, { ok: true, changed: true, admin: admin.name, note: typeof note === "string" ? note : undefined, ...(await snapshot({ admin: true })) });
 });

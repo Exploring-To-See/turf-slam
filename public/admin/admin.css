@@ -275,3 +275,21 @@ dialog::backdrop { background: rgba(5, 20, 6, 0.72); }
   .table tr { padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ---------- bulk category + sync ---------- */
+.b-warn { background: var(--amber); color: #3a2a00; }
+.prow.unmarked { border-color: var(--amber); box-shadow: 0 0 0 1.5px rgba(255, 212, 121, 0.45); }
+.pid .selbox, .selall input { width: 20px; height: 20px; flex: 0 0 auto; accent-color: var(--lime); }
+.pid .badge { margin-left: 6px; font-size: 0.7rem; padding: 1px 8px; vertical-align: 2px; }
+.bulkbar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin: 0 0 12px; padding: 8px 14px; border-radius: 14px; background: rgba(255, 255, 250, 0.05); border: 1.5px dashed var(--line); }
+.bulkbar.on { border-style: solid; border-color: var(--lime); }
+.bulkbar .btns { margin-left: auto; }
+.selall { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
+.syncsum { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.synch { margin: 14px 0 6px; font: 700 1rem/1 var(--f-display); letter-spacing: 0.1em; text-transform: uppercase; }
+.synch.warnh { color: var(--amber); }
+.synclist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 200px; overflow: auto; }
+.synclist li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 10px; background: rgba(8, 34, 10, 0.5); }
+.synclist li b { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.synclist li small.warnt { color: var(--amber); }
+.synclist.warn li { background: rgba(255, 212, 121, 0.12); box-shadow: inset 0 0 0 1.5px rgba(255, 212, 121, 0.5); }
