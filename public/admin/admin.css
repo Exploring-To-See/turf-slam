@@ -320,3 +320,7 @@ dialog::backdrop { background: rgba(5, 20, 6, 0.72); }
 .lvl .k { margin: 0; }
 .lvl.none .select { border-color: var(--amber); box-shadow: 0 0 0 1.5px rgba(255, 212, 121, 0.45); }
 .warnt { color: var(--amber); }
+
+/* ---------- wallet ---------- */
+.wallet { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: flex-end; margin: 6px 0 2px; }
+.wallet > div { flex: 1 1 200px; min-width: 0; }

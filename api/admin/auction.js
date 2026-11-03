@@ -90,6 +90,21 @@ const actions = {
     if (!CATS.includes(b.category)) throw bad("Pick a level.");
     await one(sb.rpc("ts_edit_retention", { p_player: b.player_id, p_category: b.category, p_price: int(String(b.price ?? "").replace(/[^\d]/g, ""), "Retention price", { min: 1 }) }));
   },
+  // A sold player goes to another team (or the same team at another price) without going back through the auction.
+  async reassign_sale(sb, b) {
+    if (!UUID_RE.test(String(b.player_id))) throw bad("Bad request.");
+    await one(sb.rpc("ts_reassign_sale", { p_player: b.player_id, p_team: int(b.team_id, "Team", { min: 1 }), p_price: int(String(b.price ?? "").replace(/[^\d]/g, ""), "Price", { min: 1 }) }));
+  },
+  // Add to or take from a team's wallet (the total purse). It can't drop below what the team has already spent.
+  async adjust_purse(sb, b) {
+    const id = int(b.id, "Team", { min: 1 }), delta = Number(String(b.delta ?? "").replace(/[^\d-]/g, ""));
+    if (!Number.isInteger(delta) || delta === 0) throw bad("Enter an amount to add (or a minus amount to take away).");
+    const [t] = await one(sb.from("ts_team_summary").select("name, purse_total, spent").eq("id", id));
+    const next = Number(t.purse_total) + delta;
+    if (next < Number(t.spent)) throw bad(`${t.name} has already spent ${Number(t.spent).toLocaleString("en-IN")}, so the wallet cannot go below that.`);
+    await one(sb.from("ts_teams").update({ purse_total: next }).eq("id", id));
+    return `${t.name} wallet is now ₹${next.toLocaleString("en-IN")}`;
+  },
   async reset(sb, b) {
     if (b.confirm !== "RESET") throw bad("Type RESET to confirm.");
     await one(sb.rpc("ts_reset", { p_include_retained: !!b.include_retained }));

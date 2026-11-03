@@ -344,7 +344,7 @@
             ${eligible(p) ? `<button class="mini primary" type="button" data-act="bring-now" ${started() && !A.state.player_id ? "" : "disabled"}>Bring now</button>` : ""}
             ${ret ? `<button class="mini" type="button" data-act="retain">Retain…</button>` : ""}
             ${p.status === "retained" ? `<button class="mini" type="button" data-act="edit-ret">Edit retention</button><button class="mini" type="button" data-act="release">Release</button>` : ""}
-            ${p.status === "sold" ? `<button class="mini" type="button" data-act="revert">Revert sale</button>` : ""}
+            ${p.status === "sold" ? `<button class="mini" type="button" data-act="move-sale">Move to another team</button><button class="mini" type="button" data-act="revert">Revert sale</button>` : ""}
             </div>
         </article>`;
       }).join("") : `<div class="empty">${A.players.some((p) => p.in_list) ? "No players match these filters." : "No players yet. Players join this list automatically when their registration is marked Payment received."}</div>`}</div>`;
@@ -373,12 +373,14 @@
               <div><label class="label" for="${k("short")}">Short name</label><input class="input sm" id="${k("short")}" data-keep="${k("short")}" data-f="short_name" maxlength="5" value="${esc(val(k("short"), t.short_name))}"></div>
               <div><label class="label" for="${k("color")}">Colour</label><input class="input" type="color" id="${k("color")}" data-keep="${k("color")}" data-f="color" value="${esc(val(k("color"), t.color))}"></div>
               <div class="wide"><label class="label" for="${k("cap")}">Captain <span class="opt">(optional)</span></label><input class="input sm" id="${k("cap")}" data-keep="${k("cap")}" data-f="captain_name" maxlength="60" value="${esc(val(k("cap"), t.captain_name || ""))}"></div>
-              <div><label class="label" for="${k("purse")}">Purse (₹)</label><input class="input sm" id="${k("purse")}" data-keep="${k("purse")}" data-f="purse_total" inputmode="numeric" value="${esc(val(k("purse"), t.purse_total))}"></div>
+              <div><label class="label" for="${k("purse")}">Wallet: total purse (₹)</label><input class="input sm" id="${k("purse")}" data-keep="${k("purse")}" data-f="purse_total" inputmode="numeric" value="${esc(val(k("purse"), t.purse_total))}"></div>
               <div><label class="label" for="${k("squad")}">Squad size</label><input class="input sm" id="${k("squad")}" data-keep="${k("squad")}" data-f="max_squad" inputmode="numeric" value="${esc(val(k("squad"), t.max_squad))}"></div>
             </div>
+            <div class="wallet"><div><label class="label" for="${k("adj")}">Add to or take from the wallet (₹, minus to deduct)</label><input class="input sm" id="${k("adj")}" data-keep="${k("adj")}" inputmode="text" placeholder="e.g. 500000 or -250000" value="${esc(val(k("adj"), ""))}" autocomplete="off"></div>
+              <button class="mini" type="button" data-act="wallet-adjust">Adjust wallet</button></div>
             <div class="btns"><button class="mini primary" type="button" data-act="team-save">Save team</button><button class="mini danger" type="button" data-act="team-del" ${mine.length ? "disabled title=\"Remove this team's players first\"" : ""}>Delete team</button></div>
             <div><h4 class="label">Squad</h4>
-              <ul class="squad">${mine.map((p) => `<li data-id="${esc(p.id)}"><span>${esc(p.name)} <span class="badge b-${esc(p.status)}">${p.status === "retained" ? "Retained" : "Bought"}</span></span><span class="money num">${INR(p.price)}</span>${p.status === "retained" ? `<button class="mini" type="button" data-act="edit-ret">Edit</button>` : ""}<button class="mini" type="button" data-act="${p.status === "retained" ? "release" : "revert"}">${p.status === "retained" ? "Release" : "Revert"}</button></li>`).join("") || `<li><span class="hint" style="margin:0">No players yet.</span></li>`}</ul></div>
+              <ul class="squad">${mine.map((p) => `<li data-id="${esc(p.id)}"><span>${esc(p.name)} <span class="badge b-${esc(p.status)}">${p.status === "retained" ? "Retained" : "Bought"}</span></span><span class="money num">${INR(p.price)}</span>${p.status === "retained" ? `<button class="mini" type="button" data-act="edit-ret">Edit</button>` : ""}${p.status === "sold" ? `<button class="mini" type="button" data-act="move-sale">Move</button>` : ""}<button class="mini" type="button" data-act="${p.status === "retained" ? "release" : "revert"}">${p.status === "retained" ? "Release" : "Revert"}</button></li>`).join("") || `<li><span class="hint" style="margin:0">No players yet.</span></li>`}</ul></div>
             <div><label class="label" for="${k("ret")}">Retain a player (${A.settings.retain_per_team} allowed)</label>
               <div class="btns" style="flex-wrap:nowrap"><select class="select sm" id="${k("ret")}" data-keep="${k("ret")}"><option value="">Choose a player</option>${retainable.map((p) => `<option value="${esc(p.id)}" ${val(k("ret"), "") === p.id ? "selected" : ""}>${esc(p.name)} (Cat ${esc(p.category)}, ${short(cat(p.category).retention_value)})</option>`).join("")}</select>
                 <button class="mini primary" type="button" data-act="team-retain">Retain</button></div></div>
@@ -483,6 +485,8 @@
   // ---- delegated dialog events ----
   dbody.addEventListener("click", (e) => {
     if (e.target.closest("[data-d='no']") && !e.target.closest("[data-d='yes']")) { if (!dbody.querySelector("[data-d='yes']")) closeDlg(); return; }
+    const rv = e.target.closest("[data-rv]");
+    if (rv) { const id = rv.closest("[data-id]").dataset.id; closeDlg(); act("revert", { player_id: id, to: rv.dataset.rv }, rv.dataset.rv === "pool" ? "Sale reverted, player is back in the pool" : "Sale reverted, player is on the unsold list"); return; }
     const b = e.target.closest("[data-d2]"); if (!b) return;
     if (b.dataset.d2 === "close") { closeDlg(); return; }
     const list = $("#implist");
@@ -494,7 +498,11 @@
     e.preventDefault();
     const form = e.target, kind = form.dataset.submit;
     if (kind === "reg-save") return saveReg(form);
-    if (kind === "edit-ret") {
+    if (kind === "move-sale") {
+      const er = $("#mv-err"); er.hidden = true;
+      const ok = await act("reassign_sale", { player_id: form.dataset.id, team_id: $("#mv-team").value, price: $("#mv-price").value }, "Player moved");
+      if (ok) closeDlg(); else { er.textContent = $("#toast").textContent; er.hidden = false; }
+    } else if (kind === "edit-ret") {
       const er = $("#er-err"); er.hidden = true;
       const ok = await act("edit_retention", { player_id: form.dataset.id, category: $("#er-cat").value, price: $("#er-price").value }, "Retention updated");
       if (ok) closeDlg(); else { er.textContent = $("#toast").textContent; er.hidden = false; }
@@ -615,9 +623,25 @@
         <div class="dlg-acts" style="margin-top:14px"><button class="mini" type="button" data-d="no">Cancel</button><button class="btn" type="submit">Retain</button></div></form>`);
     },
     release: (b) => act("retain", { player_id: idOf(b), team_id: null }, "Player released"),
-    async revert(b) {
-      const p = player(idOf(b));
-      if (await ask({ title: "Revert this sale?", text: `${p.name} goes back to the pool and ${INR(p.price)} is refunded to ${team(p.team_id).name}.`, ok: "Revert sale", danger: true })) act("revert", { player_id: p.id, to: "pool" }, "Sale reverted");
+    revert(b) {
+      const p = player(idOf(b)); if (!p) return;
+      openDlg(`<div data-id="${esc(p.id)}"><h2>Revert the sale of ${esc(p.name)}?</h2>
+        <p>${INR(p.price)} is refunded to ${esc(team(p.team_id).name)}. Choose where ${esc(p.name)} goes next.</p>
+        <div class="dlg-acts" style="margin-top:14px;flex-wrap:wrap"><button class="mini" type="button" data-d="no">Cancel</button>
+          <button class="mini primary" type="button" data-rv="pool">Back to the pool</button><button class="mini" type="button" data-rv="unsold">Put on the unsold list</button></div></div>`);
+    },
+    "move-sale"(b) {
+      const p = player(idOf(b)); if (!p) return;
+      openDlg(`<form data-submit="move-sale" data-id="${esc(p.id)}"><h2>Move ${esc(p.name)} to another team</h2>
+        <p class="hint" style="margin:6px 0 12px">Currently with ${esc(team(p.team_id).name)} at ${INR(p.price)}. The first team is refunded and the new team pays the price below.</p>
+        <div class="fgrid"><div><label class="label" for="mv-team">Team</label><select class="select" id="mv-team">${A.teams.map((t) => `<option value="${t.id}" ${t.id === p.team_id ? "selected" : ""}>${esc(t.name)} (${t.squad}/${t.max_squad}, ${short(t.purse_left)} left)</option>`).join("")}</select></div>
+          <div><label class="label" for="mv-price">Price (₹)</label><input class="input" id="mv-price" inputmode="numeric" autocomplete="off" value="${esc(p.price)}"></div></div>
+        <p class="form-err" id="mv-err" role="alert" hidden style="margin-top:12px"></p>
+        <div class="dlg-acts" style="margin-top:14px"><button class="mini" type="button" data-d="no">Cancel</button><button class="btn" type="submit">Move player</button></div></form>`);
+    },
+    async "wallet-adjust"(b) {
+      const card = b.closest("[data-team]"), id = card.dataset.team, inp = $("[data-keep$='-adj']", card);
+      if (await act("adjust_purse", { id, delta: inp.value }, "Wallet updated")) { delete drafts[inp.dataset.keep]; render(); }
     },
     // teams
     "team-add": () => act("add_team", {}, "Team added"),
