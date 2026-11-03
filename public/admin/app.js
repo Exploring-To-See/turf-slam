@@ -63,12 +63,13 @@
   $("#logout").addEventListener("click", async () => { try { await post("/api/admin/logout", {}); } catch (_) {} showLogin(); });
 
   // ---------- polling ----------
-  let timer = 0, busy = false;
+  let timer = 0, busy = false, regTick = 0;
   const stopTimer = () => { clearTimeout(timer); timer = 0; };
   async function tick() {
     if (busy) return; busy = true;
     try {
-      const wantRegs = ["overview", "registrations", "players", "live"].includes(route) || !!$("#dlg[open] .importlist");
+      // registrations are heavier than the auction feed: every tick on their own page, every few seconds elsewhere
+      const wantRegs = route === "registrations" || !R || ++regTick % 4 === 0;
       const [a, r] = await Promise.all([
         api("/api/admin/auction" + (A ? `?since=${A.v}` : "")),
         wantRegs ? api("/api/admin/registrations") : Promise.resolve(null),
@@ -496,7 +497,9 @@
       const ok = await act("retain", { player_id: form.dataset.id, team_id: $("#ret-team").value }, "Player retained");
       if (ok) closeDlg();
     } else if (kind === "reset") {
+      const go = $("#reset-go"), er = $("#reset-err"); go.disabled = true; go.textContent = "Resetting…"; er.hidden = true;
       const ok = await act("reset", { confirm: $("#reset-word").value.trim(), include_retained: $("#reset-ret").checked }, "Auction reset");
+      if (!ok) { go.disabled = false; go.textContent = "Reset auction"; er.textContent = $("#toast").textContent || "Reset did not go through."; er.hidden = false; return; }
       if (ok) closeDlg();
     }
   });
@@ -626,7 +629,8 @@
       openDlg(`<form data-submit="reset"><h2>Reset the auction?</h2><p>Every sold, unsold and live player returns to the pool, all bids and the log are cleared, and purses are refunded. This can't be undone.</p>
         <label class="label" for="reset-word" style="margin-top:12px">Type RESET to confirm</label><input class="input" id="reset-word" autocomplete="off">
         <label class="label" style="margin-top:12px"><input type="checkbox" id="reset-ret" style="width:20px;height:20px;accent-color:#c8f03a;vertical-align:-4px"> Also release retained players</label>
-        <div class="dlg-acts" style="margin-top:14px"><button class="mini" type="button" data-d="no">Cancel</button><button class="mini solid-danger" type="submit">Reset auction</button></div></form>`);
+        <p class="form-err" id="reset-err" role="alert" hidden style="margin-top:12px"></p>
+        <div class="dlg-acts" style="margin-top:14px"><button class="mini" type="button" data-d="no">Cancel</button><button class="mini solid-danger" type="submit" id="reset-go">Reset auction</button></div></form>`);
     },
   };
   view.addEventListener("click", (e) => { const b = e.target.closest("[data-act]"); if (b && handlers[b.dataset.act]) handlers[b.dataset.act](b, e); });

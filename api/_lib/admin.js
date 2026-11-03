@@ -69,13 +69,19 @@ async function login(password) {
   return { ok: true, token, name: u.username, maxAge: SESSION_HOURS * 3600 };
 }
 
+const seen = new Map();   // token hash -> { admin, until }; short-lived so a sign-out elsewhere still takes effect within seconds
 async function getAdmin(req) {
   const token = getCookie(req, COOKIE);
   if (!token) return null;
+  const hit = seen.get(sha256(token));
+  if (hit && hit.until > Date.now()) return hit.admin;
   const { data } = await db().from("admin_sessions")
     .select("expires_at, admin_users(username)").eq("token_hash", sha256(token)).maybeSingle();
   if (!data || new Date(data.expires_at) < new Date()) return null;
-  return { name: data.admin_users.username, tokenHash: sha256(token) };
+  const admin = { name: data.admin_users.username, tokenHash: sha256(token) };
+  seen.set(admin.tokenHash, { admin, until: Date.now() + 8000 });
+  if (seen.size > 50) seen.clear();
+  return admin;
 }
 
 // Wraps an admin handler: session required; mutating calls also need the CSRF header.

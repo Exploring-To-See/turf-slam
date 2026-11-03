@@ -17,17 +17,22 @@ async function currentVersion() {
 // Everything a screen needs in one object. `admin` adds notes and the list of registrations.
 async function snapshot({ admin = false } = {}) {
   const sb = db();
-  const [state, teams, players, categories, settings, events] = await Promise.all([
-    one(sb.from("ts_state").select("*").eq("id", 1).single()),
+  // round trip 1: the live state (tells us whose bids to load); round trip 2: everything else at once
+  const state = await one(sb.from("ts_state").select("*").eq("id", 1).single());
+  const [teams, players, categories, settings, events, bids, regs] = await Promise.all([
     one(sb.from("ts_team_summary").select("*")),
     one(sb.from("ts_player_cards").select(admin ? PLAYER_COLS_ADMIN : PLAYER_COLS).order("serial")),
     one(sb.from("ts_categories").select("*").order("sort_order")),
     one(sb.from("ts_settings").select("*").eq("id", 1).single()),
     one(sb.from("ts_events").select("id, kind, player_id, team_id, amount, player_name, team_name, created_at").order("id", { ascending: false }).limit(60)),
+    state.current_player_id
+      ? one(sb.from("ts_bids").select("id, team_id, amount, created_at").eq("player_id", state.current_player_id).order("id", { ascending: false }).limit(12))
+      : Promise.resolve([]),
+    admin
+      ? one(sb.from("registrations").select("id, reference, name, role, age, tournaments_played, payment_status, auction_category, completed_at, photo_path")
+          .eq("status", "received").order("completed_at", { ascending: false }).limit(2000))
+      : Promise.resolve(null),
   ]);
-  const bids = state.current_player_id
-    ? await one(sb.from("ts_bids").select("id, team_id, amount, created_at").eq("player_id", state.current_player_id).order("id", { ascending: false }).limit(12))
-    : [];
   if (!settings.show_photos && !admin) players.forEach((p) => (p.has_photo = false));
 
   const snap = {
@@ -45,9 +50,6 @@ async function snapshot({ admin = false } = {}) {
   };
 
   if (admin) {
-    const regs = await one(sb.from("registrations")
-      .select("id, reference, name, role, age, tournaments_played, payment_status, auction_category, completed_at, photo_path")
-      .eq("status", "received").order("completed_at", { ascending: false }).limit(2000));
     const imported = new Set(players.map((p) => p.registration_id).filter(Boolean));
     snap.registrations = regs.map((r) => ({ ...r, has_photo: !!r.photo_path, photo_path: undefined, imported: imported.has(r.id) }));
   }
